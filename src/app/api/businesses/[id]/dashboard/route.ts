@@ -1,0 +1,17 @@
+import { NextResponse } from "next/server";
+import { getBusinessDashboard } from "@/lib/dashboard";
+
+type RouteContext = {
+  params: Promise<{ id: string }>;
+};
+
+export async function GET(_request: Request, context: RouteContext) {
+  const { id } = await context.params;
+  const dashboard = await getBusinessDashboard(id);
+
+  if (!dashboard) {
+    return NextResponse.json({ error: "Business not found" }, { status: 404 });
+  }
+
+  return NextResponse.json(dashboard);
+}

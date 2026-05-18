@@ -1,0 +1,12 @@
+.env
+.env*.local
+.next
+node_modules
+.pnpm-store
+.wrangler
+dist
+dist-cloudflare-demo
+coverage
+*.log
+*.tsbuildinfo
+prisma/dev.db

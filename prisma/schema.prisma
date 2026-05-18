@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PromptStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum RunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum Sentiment {
+  positive
+  neutral
+  negative
+  unknown
+}
+
+model Business {
+  id               String               @id @default(cuid())
+  name             String
+  category         String
+  location         String
+  websiteUrl       String
+  targetAttributes String[]
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  competitors      Competitor[]
+  prompts          Prompt[]
+  snapshots        VisibilitySnapshot[]
+  websiteAudits    WebsiteAudit[]
+
+  @@index([name])
+}
+
+model WebsiteAudit {
+  id                 String    @id @default(cuid())
+  websiteUrl         String
+  normalizedUrl      String
+  status             String    @default("COMPLETED")
+  error              String?
+  businessId         String?
+  inferredName       String?
+  inferredCategory   String?
+  inferredLocation   String?
+  inferredAttributes String[]
+  pages              Json
+  summaryText        String
+  createdAt          DateTime  @default(now())
+  business           Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+
+  @@index([normalizedUrl])
+  @@index([businessId])
+  @@index([createdAt])
+}
+
+model LeadProspect {
+  id          String   @id @default(cuid())
+  source      String
+  sourceId    String?
+  name        String
+  category    String
+  location    String
+  websiteUrl  String?
+  phone       String?
+  rating      Float?
+  reviewCount Int?
+  address     String?
+  mapsUrl     String?
+  raw         Json?
+  status      String   @default("NEW")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([source, sourceId])
+  @@index([category, location])
+  @@index([status])
+}
+
+model AgencyInquiry {
+  id         String   @id @default(cuid())
+  name       String
+  email      String
+  agencyName String?
+  message    String
+  createdAt  DateTime @default(now())
+
+  @@index([email])
+  @@index([createdAt])
+}
+
+model TelemetryEvent {
+  id        String   @id @default(cuid())
+  eventName String
+  source    String   @default("local")
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([eventName])
+  @@index([createdAt])
+}
+
+model Competitor {
+  id         String   @id @default(cuid())
+  businessId String
+  name       String
+  websiteUrl String?
+  createdAt  DateTime @default(now())
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, name])
+  @@index([businessId])
+}
+
+model Prompt {
+  id            String       @id @default(cuid())
+  businessId    String
+  text          String
+  template      String
+  clusterId     String
+  clusterIntent String
+  samplingBasis Json?
+  status        PromptStatus @default(ACTIVE)
+  createdAt     DateTime     @default(now())
+  business      Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  runs          PromptRun[]
+
+  @@unique([businessId, text])
+  @@index([businessId])
+}
+
+model PromptRun {
+  id                    String            @id @default(cuid())
+  promptId              String
+  evaluationRunId       String?
+  provider              String            @default("chatgpt")
+  sampleIndex           Int               @default(0)
+  model                 String
+  rawAnswer             String?
+  status                RunStatus         @default(PENDING)
+  error                 String?
+  tokenUsage            Json?
+  langfuseTraceId       String?
+  langfuseObservationId String?
+  langfuseTraceUrl      String?
+  startedAt             DateTime          @default(now())
+  runAt                 DateTime          @default(now())
+  completedAt           DateTime?
+  prompt                Prompt            @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  extractionResult      ExtractionResult?
+
+  @@index([promptId, runAt])
+  @@index([provider])
+  @@index([evaluationRunId])
+  @@index([langfuseTraceId])
+}
+
+model ExtractionResult {
+  id                  String              @id @default(cuid())
+  promptRunId         String              @unique
+  targetAppears       Boolean
+  targetRank          Int?
+  sentiment           Sentiment
+  reasons             String[]
+  sources             String[]
+  confidence          Float
+  extractedAt         DateTime            @default(now())
+  promptRun           PromptRun           @relation(fields: [promptRunId], references: [id], onDelete: Cascade)
+  mentionedBusinesses MentionedBusiness[]
+  referenceSignals    ReferenceSignal[]
+  semanticAttributes  SemanticAttribute[]
+}
+
+model MentionedBusiness {
+  id                 String           @id @default(cuid())
+  extractionResultId String
+  name               String
+  rank               Int?
+  sentiment          Sentiment        @default(unknown)
+  reasons            String[]
+  extractionResult   ExtractionResult @relation(fields: [extractionResultId], references: [id], onDelete: Cascade)
+
+  @@index([extractionResultId])
+  @@index([name])
+}
+
+model SemanticAttribute {
+  id                 String           @id @default(cuid())
+  extractionResultId String
+  label              String
+  evidence           String?
+  extractionResult   ExtractionResult @relation(fields: [extractionResultId], references: [id], onDelete: Cascade)
+
+  @@index([extractionResultId])
+  @@index([label])
+}
+
+model ReferenceSignal {
+  id                     String           @id @default(cuid())
+  extractionResultId     String
+  sourceType             String
+  label                  String
+  url                    String?
+  evidence               String?
+  mentionedForBusinesses String[]
+  extractionResult       ExtractionResult @relation(fields: [extractionResultId], references: [id], onDelete: Cascade)
+
+  @@index([extractionResultId])
+  @@index([sourceType])
+  @@index([label])
+}
+
+model VisibilitySnapshot {
+  id                         String   @id @default(cuid())
+  businessId                 String
+  provider                   String   @default("chatgpt")
+  visibilityScore            Float
+  averageRank                Float?
+  totalPrompts               Int
+  mentionedPrompts           Int
+  recommendationRate         Float    @default(0)
+  shareOfVoice               Float    @default(0)
+  positionWeightedVisibility Float    @default(0)
+  recommendationConsistency  Float    @default(0)
+  competitorShare            Float    @default(0)
+  volatilityScore            Float    @default(0)
+  sourceMentions             Int      @default(0)
+  sourceDiversity            Int      @default(0)
+  reliabilityScore           Float    @default(0)
+  reliabilityLabel           String   @default("low")
+  topCompetitorDisplacement  String?
+  createdAt                  DateTime @default(now())
+  business                   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, createdAt])
+  @@index([businessId, provider, createdAt])
+}
