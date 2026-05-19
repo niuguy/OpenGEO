@@ -146,6 +146,18 @@ Prospect discovery:
 2. The app uses Google Places API to find local prospects and stores them in `LeadProspect`.
 3. Use each prospect website as a starting point for an audit and pitch.
 
+Outreach contact crawl:
+
+```bash
+OUTREACH_CATEGORY="dentist" \
+OUTREACH_LOCATION="Woking, Surrey" \
+OUTREACH_LIMIT=10 \
+OUTREACH_MAX_PAGES=8 \
+pnpm outreach:crawl
+```
+
+This discovers prospects through Google Places, crawls each public business website, and stores reviewable outreach data in `OutreachCrawl`: public emails, phone hints, likely contact pages, and form metadata. It does not submit forms automatically. Treat form submission as a separate reviewed outreach step so the app does not send messages without explicit approval.
+
 The app does not directly scrape Google Maps pages. Use the official Places API path:
 
 ```bash

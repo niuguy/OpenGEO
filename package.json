@@ -14,6 +14,7 @@
     "demo:small": "tsx scripts/run-small-demo.ts",
     "demo:refresh": "tsx scripts/refresh-demo-snapshot.ts",
     "demo:export": "tsx scripts/export-cloudflare-demo.ts",
+    "outreach:crawl": "tsx scripts/crawl-outreach-leads.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",

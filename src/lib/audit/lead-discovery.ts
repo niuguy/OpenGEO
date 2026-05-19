@@ -1,4 +1,6 @@
 import { ProxyAgent, request } from "undici";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 export type LeadDiscoveryInput = {
   category: string;
@@ -28,7 +30,7 @@ export async function discoverGooglePlacesLeads(input: LeadDiscoveryInput): Prom
   }
 
   const limit = Math.max(1, Math.min(input.limit ?? 10, 20));
-  const response = await requestWithProxyFallback("https://places.googleapis.com/v1/places:searchText", {
+  const response = await postJsonWithProxyFallback("https://places.googleapis.com/v1/places:searchText", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -57,7 +59,7 @@ export async function discoverGooglePlacesLeads(input: LeadDiscoveryInput): Prom
     throw new Error(`Google Places request failed: ${response.statusCode}`);
   }
 
-  const data = (await response.body.json()) as { places?: GooglePlace[] };
+  const data = response.data as { places?: GooglePlace[] };
   return (data.places ?? []).slice(0, limit).map((place) => ({
     source: "google_places",
     sourceId: place.id,
@@ -74,7 +76,9 @@ export async function discoverGooglePlacesLeads(input: LeadDiscoveryInput): Prom
   }));
 }
 
-async function requestWithProxyFallback(
+const execFileAsync = promisify(execFile);
+
+async function postJsonWithProxyFallback(
   url: string,
   init: {
     method: string;
@@ -84,18 +88,55 @@ async function requestWithProxyFallback(
 ) {
   const dispatcher = getProxyDispatcher();
 
-  if (!dispatcher) {
-    return request(url, init);
+  try {
+    const response = await request(url, dispatcher ? { ...init, dispatcher } : init);
+    return {
+      statusCode: response.statusCode,
+      data: await response.body.json()
+    };
+  } catch {
+    return postJsonWithCurl(url, init);
+  }
+}
+
+async function postJsonWithCurl(
+  url: string,
+  init: {
+    headers: Record<string, string>;
+    body: string;
+  }
+) {
+  const args = [
+    "-sS",
+    "--max-time",
+    String(Math.ceil(Number(process.env.WEBSITE_CRAWL_TIMEOUT_MS || 12000) / 1000)),
+    "-X",
+    "POST",
+    "-w",
+    "\n%{http_code}",
+    url
+  ];
+  for (const [key, value] of Object.entries(init.headers)) {
+    args.push("-H", `${key}: ${value}`);
+  }
+  args.push("--data", init.body);
+
+  const socksProxy = getSocksProxyAddress();
+  if (socksProxy) {
+    args.unshift("--socks5-hostname", socksProxy);
   }
 
-  try {
-    return await request(url, {
-      ...init,
-      dispatcher
-    });
-  } catch {
-    return request(url, init);
-  }
+  const { stdout } = await execFileAsync("curl", args, {
+    maxBuffer: 1024 * 1024
+  });
+  const separator = stdout.lastIndexOf("\n");
+  const body = separator >= 0 ? stdout.slice(0, separator) : stdout;
+  const statusCode = Number(separator >= 0 ? stdout.slice(separator + 1) : 0);
+
+  return {
+    statusCode,
+    data: JSON.parse(body)
+  };
 }
 
 function getProxyDispatcher() {
@@ -110,6 +151,20 @@ function getProxyDispatcher() {
   }
 
   return new ProxyAgent(proxy);
+}
+
+function getSocksProxyAddress() {
+  const proxy =
+    process.env.CLASH_SOCKS_PROXY_URL ||
+    process.env.ALL_PROXY ||
+    process.env.all_proxy;
+
+  if (!proxy || !/^socks5h?:\/\//i.test(proxy)) {
+    return null;
+  }
+
+  const parsed = new URL(proxy);
+  return `${parsed.hostname}:${parsed.port}`;
 }
 
 type GooglePlace = {

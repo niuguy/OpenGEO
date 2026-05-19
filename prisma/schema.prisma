@@ -66,26 +66,48 @@ model WebsiteAudit {
 }
 
 model LeadProspect {
-  id          String   @id @default(cuid())
-  source      String
-  sourceId    String?
-  name        String
-  category    String
-  location    String
-  websiteUrl  String?
-  phone       String?
-  rating      Float?
-  reviewCount Int?
-  address     String?
-  mapsUrl     String?
-  raw         Json?
-  status      String   @default("NEW")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String          @id @default(cuid())
+  source         String
+  sourceId       String?
+  name           String
+  category       String
+  location       String
+  websiteUrl     String?
+  phone          String?
+  rating         Float?
+  reviewCount    Int?
+  address        String?
+  mapsUrl        String?
+  raw            Json?
+  status         String          @default("NEW")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  outreachCrawls OutreachCrawl[]
 
   @@unique([source, sourceId])
   @@index([category, location])
   @@index([status])
+}
+
+model OutreachCrawl {
+  id             String        @id @default(cuid())
+  leadProspectId String?
+  sourceLeadName String
+  websiteUrl     String?
+  normalizedUrl  String?
+  status         String        @default("COMPLETED")
+  emails         String[]
+  phoneNumbers   String[]
+  contactPages   Json
+  forms          Json
+  notes          String?
+  createdAt      DateTime      @default(now())
+  leadProspect   LeadProspect? @relation(fields: [leadProspectId], references: [id], onDelete: SetNull)
+
+  @@index([leadProspectId])
+  @@index([normalizedUrl])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model AgencyInquiry {
