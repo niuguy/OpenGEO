@@ -8,10 +8,10 @@ export default async function BusinessesPage() {
       _count: {
         select: {
           competitors: true,
-          prompts: true
-        }
-      }
-    }
+          prompts: true,
+        },
+      },
+    },
   });
 
   return (
@@ -19,16 +19,23 @@ export default async function BusinessesPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-semibold text-ink">Audits</h1>
-          <p className="mt-2 text-sm text-muted">Local businesses configured for AI visibility observation.</p>
+          <p className="mt-2 text-sm text-muted">
+            Local businesses configured for AI visibility observation.
+          </p>
         </div>
-        <Link href="/businesses/new" className="focus-ring rounded-md bg-accent px-4 py-2 text-sm font-medium text-white">
+        <Link
+          href="/#inquiry"
+          className="focus-ring rounded-md bg-accent px-4 py-2 text-sm font-medium text-white"
+        >
           New audit
         </Link>
       </div>
 
       <div className="mt-6 overflow-hidden rounded-lg border border-line bg-white">
         {businesses.length === 0 ? (
-          <div className="p-8 text-sm text-muted">No audits yet. Create one to start measuring ChatGPT visibility.</div>
+          <div className="p-8 text-sm text-muted">
+            No audits yet. Create one to start measuring ChatGPT visibility.
+          </div>
         ) : (
           <table className="w-full text-left text-sm">
             <thead className="border-b border-line bg-panel text-muted">
@@ -42,16 +49,26 @@ export default async function BusinessesPage() {
             </thead>
             <tbody>
               {businesses.map((business) => (
-                <tr key={business.id} className="border-b border-line last:border-0">
+                <tr
+                  key={business.id}
+                  className="border-b border-line last:border-0"
+                >
                   <td className="px-4 py-3">
-                    <Link href={`/businesses/${business.id}`} className="font-medium text-accent hover:underline">
+                    <Link
+                      href={`/businesses/${business.id}`}
+                      className="font-medium text-accent hover:underline"
+                    >
                       {business.name}
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-muted">{business.category}</td>
                   <td className="px-4 py-3 text-muted">{business.location}</td>
-                  <td className="px-4 py-3 text-muted">{business._count.competitors}</td>
-                  <td className="px-4 py-3 text-muted">{business._count.prompts}</td>
+                  <td className="px-4 py-3 text-muted">
+                    {business._count.competitors}
+                  </td>
+                  <td className="px-4 py-3 text-muted">
+                    {business._count.prompts}
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -3,12 +3,12 @@ import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Local AI Visibility Tracker",
-  description: "Open-source AI visibility observation for local SEO agencies."
+  title: "AI Search Visibility Engine",
+  description: "Track how your business appears in AI search results.",
 };
 
 export default function RootLayout({
-  children
+  children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
@@ -18,17 +18,17 @@ export default function RootLayout({
         <header className="border-b border-line bg-white">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
             <Link href="/" className="font-semibold tracking-normal text-ink">
-              Local AI Visibility Tracker
+              AI Search Visibility Engine
             </Link>
             <nav className="flex items-center gap-4 text-sm text-muted">
               <Link href="/audit-machine" className="hover:text-ink">
-                Audit machine
+                Audit Tool
               </Link>
               <Link href="/businesses" className="hover:text-ink">
-                Businesses
+                My Reports
               </Link>
-              <Link href="/businesses/new" className="hover:text-ink">
-                New audit
+              <Link href="/#inquiry" className="hover:text-ink">
+                New Analysis
               </Link>
             </nav>
           </div>
