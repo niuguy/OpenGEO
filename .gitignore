@@ -6,6 +6,7 @@ node_modules
 .wrangler
 dist
 dist-cloudflare-demo
+out
 coverage
 *.log
 *.tsbuildinfo

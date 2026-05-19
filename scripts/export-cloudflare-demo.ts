@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { getBusinessDashboard } from "../src/lib/dashboard";
 import { prisma } from "../src/lib/prisma";
 
-const outDir = "dist-cloudflare-demo";
+const outDir = process.env.CLOUDFLARE_EXPORT_DIR || "dist-cloudflare-demo";
+const includeLanding = process.env.CLOUDFLARE_EXPORT_INCLUDE_LANDING !== "false";
 
 type ClinicReport = Awaited<ReturnType<typeof buildClinicReport>>;
 
@@ -365,7 +366,9 @@ async function main() {
   const reports = await Promise.all(clinicNames.map((name) => buildClinicReport(name, normalize(name) === normalize(dashboard.business.name))));
 
   await mkdir(outDir, { recursive: true });
-  await writeFile(join(outDir, "index.html"), renderLanding(dashboard));
+  if (includeLanding) {
+    await writeFile(join(outDir, "index.html"), renderLanding(dashboard));
+  }
   await mkdir(join(outDir, "reports"), { recursive: true });
   await writeFile(join(outDir, "reports", "index.html"), renderIndex(reports));
 
