@@ -171,10 +171,86 @@ function pageShell(title: string, body: string) {
   ${styles()}
 </head>
 <body>
-  <header><div class="wrap top"><strong>Local AI Visibility Tracker</strong><a class="button" href="/">Report index</a></div></header>
+  <header><div class="wrap top"><strong>AI Search Visibility Engine</strong><span><a class="button" href="/">Landing</a> <a class="button" href="/reports/">Reports</a></span></div></header>
   <main class="wrap">${body}</main>
 </body>
 </html>`;
+}
+
+function renderLanding(dashboard: NonNullable<Awaited<ReturnType<typeof getBusinessDashboard>>>) {
+  const snapshot = dashboard.providerBreakdown[0];
+  const visibilityScore = snapshot?.visibilityScore ?? dashboard.totals.visibilityScore;
+  const shareOfVoice = snapshot?.shareOfVoice ?? dashboard.totals.shareOfVoice;
+  const averageRank = snapshot?.averageRank ?? dashboard.totals.averageRank;
+
+  return pageShell(
+    "AI Search Visibility Engine",
+    `<section class="top" style="align-items:center">
+      <div>
+        <div class="eyebrow">AI Search Visibility Engine</div>
+        <h1>See how your business appears in AI search results.</h1>
+        <p style="max-width:680px;font-size:18px">Track your visibility across ChatGPT, Gemini, and Google AI Overview. Identify competitive gaps, monitor brand mentions, and understand why AI recommends you or your competitors.</p>
+        <p>
+          <a class="button" href="/businesses/${escapeHtml(dashboard.business.id)}/">View sample audit</a>
+          <a class="button" href="/reports/" style="margin-left:8px">View encoded reports</a>
+        </p>
+      </div>
+      <div class="hero" style="min-width:320px;margin-top:0">
+        <div class="top" style="border-bottom:1px solid var(--line);padding-bottom:14px">
+          <div>
+            <div class="label">Demo report</div>
+            <strong>${escapeHtml(dashboard.business.name)}</strong>
+          </div>
+          <span class="pill">Live sample data</span>
+        </div>
+        <div style="margin-top:24px">
+          <div class="label">AI visibility score</div>
+          <div class="value">${visibilityScore}%</div>
+          <div style="height:8px;background:var(--panel);border:1px solid var(--line);border-radius:999px;overflow:hidden"><div style="height:100%;width:${visibilityScore}%;background:var(--accent)"></div></div>
+        </div>
+        <div class="two" style="margin-top:18px">
+          <div class="card"><div class="label">Share of voice</div><div class="value">${shareOfVoice}%</div></div>
+          <div class="card"><div class="label">Avg. rank</div><div class="value">#${formatRank(averageRank)}</div></div>
+        </div>
+        <p class="answer">Latest insight: sampled answers mention review signals, service pages, opening hours, and local-intent attributes when recommending clinics.</p>
+      </div>
+    </section>
+
+    <section style="margin-top:72px;text-align:center">
+      <h2>How it works</h2>
+      <div class="actions">
+        <div class="card"><div class="eyebrow">01</div><h3>Crawl & Context</h3><p>Analyze public website content, service pages, schema, and local business signals.</p></div>
+        <div class="card"><div class="eyebrow">02</div><h3>Intent Sampling</h3><p>Run diversified local-intent prompts across AI answer engines and capture recommendation variance.</p></div>
+        <div class="card"><div class="eyebrow">03</div><h3>Gap Analysis</h3><p>Extract competitors, semantic attributes, reference signals, and action priorities from the results.</p></div>
+      </div>
+    </section>
+
+    <section class="hero" style="margin-top:72px;background:var(--ink);color:#fff">
+      <div class="two">
+        <div>
+          <h2 style="color:#fff">Strategic intelligence for the AI era.</h2>
+          <p style="color:rgba(255,255,255,.72)">Stop guessing how AI models perceive your brand. Get structured evidence, raw answer excerpts, competitive benchmarks, and practical action reports.</p>
+        </div>
+        <div class="card" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14)">
+          <h3 style="color:#fff">Built for agencies and local operators</h3>
+          <p style="color:rgba(255,255,255,.68)">Use repeatable sampling to discover visibility gaps, pitch prospects, and measure whether content and reputation work changes AI recommendation frequency.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="inquiry" class="two" style="margin-top:72px">
+      <div>
+        <h2>Get started</h2>
+        <p>Use the sample report to demo the workflow, or run a local audit for a specific clinic before pitching.</p>
+        <p><strong>Contact:</strong> ${escapeHtml(process.env.NEXT_PUBLIC_CONTACT_EMAIL || "set NEXT_PUBLIC_CONTACT_EMAIL")}</p>
+      </div>
+      <div class="card">
+        <h3>What the demo includes</h3>
+        <p>Provider comparison, visibility metrics, competitor displacement, semantic attributes, source signals, encoded clinic reports, and recommended actions.</p>
+        <p><a class="button" href="/reports/">Open reports</a></p>
+      </div>
+    </section>`
+  );
 }
 
 function renderIndex(reports: ClinicReport[]) {
@@ -289,7 +365,9 @@ async function main() {
   const reports = await Promise.all(clinicNames.map((name) => buildClinicReport(name, normalize(name) === normalize(dashboard.business.name))));
 
   await mkdir(outDir, { recursive: true });
-  await writeFile(join(outDir, "index.html"), renderIndex(reports));
+  await writeFile(join(outDir, "index.html"), renderLanding(dashboard));
+  await mkdir(join(outDir, "reports"), { recursive: true });
+  await writeFile(join(outDir, "reports", "index.html"), renderIndex(reports));
 
   for (const report of reports) {
     const reportDir = join(outDir, "r", report.slug);
