@@ -1,0 +1,94 @@
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import type { GeneratedPrompt } from "@/lib/prompts";
+
+export const customPromptInputSchema = z
+  .string()
+  .transform((value) => value.replace(/\s+/g, " ").trim())
+  .pipe(z.string().min(8, "Prompt must be at least 8 characters").max(500, "Prompt must be at most 500 characters"));
+
+export type PersistGeneratedOptions = {
+  status?: "DRAFT" | "ACTIVE";
+};
+
+export async function persistGeneratedPrompts(
+  businessId: string,
+  generated: GeneratedPrompt[],
+  options: PersistGeneratedOptions = {}
+) {
+  const status = options.status ?? "DRAFT";
+
+  for (const prompt of generated) {
+    await prisma.prompt.upsert({
+      where: { businessId_text: { businessId, text: prompt.text } },
+      update: {
+        template: prompt.template,
+        clusterId: prompt.clusterId,
+        clusterIntent: prompt.clusterIntent,
+        samplingBasis: prompt.samplingBasis
+      },
+      create: {
+        businessId,
+        text: prompt.text,
+        template: prompt.template,
+        clusterId: prompt.clusterId,
+        clusterIntent: prompt.clusterIntent,
+        samplingBasis: prompt.samplingBasis,
+        status,
+        source: "generated"
+      }
+    });
+  }
+
+  // Archive generated prompts no longer in the new set. User-added prompts
+  // are scoped out so the next regeneration never silently deletes them.
+  await prisma.prompt.updateMany({
+    where: {
+      businessId,
+      source: "generated",
+      status: { in: ["DRAFT", "ACTIVE"] },
+      text: { notIn: generated.map((p) => p.text) }
+    },
+    data: { status: "ARCHIVED" }
+  });
+}
+
+export type PersistUserPromptResult =
+  | { ok: true; promptId: string }
+  | { ok: false; reason: "validation"; message: string }
+  | { ok: false; reason: "duplicate"; existingPromptId: string };
+
+export async function persistUserPrompt(
+  businessId: string,
+  rawText: string
+): Promise<PersistUserPromptResult> {
+  const parsed = customPromptInputSchema.safeParse(rawText);
+  if (!parsed.success) {
+    return { ok: false, reason: "validation", message: parsed.error.issues[0]?.message ?? "Invalid prompt" };
+  }
+  const text = parsed.data;
+
+  const existing = await prisma.prompt.findUnique({
+    where: { businessId_text: { businessId, text } },
+    select: { id: true }
+  });
+  if (existing) {
+    return { ok: false, reason: "duplicate", existingPromptId: existing.id };
+  }
+
+  const created = await prisma.prompt.create({
+    data: {
+      businessId,
+      text,
+      template: "user-custom",
+      clusterId: "user-custom",
+      clusterIntent: "user-custom",
+      samplingBasis: { intent: "user-custom" },
+      status: "ACTIVE",
+      source: "user"
+    },
+    select: { id: true }
+  });
+
+  return { ok: true, promptId: created.id };
+}

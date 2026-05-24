@@ -89,7 +89,8 @@ async function main() {
         template: prompt.template,
         clusterId: prompt.clusterId,
         clusterIntent: prompt.clusterIntent,
-        samplingBasis: prompt.samplingBasis
+        samplingBasis: prompt.samplingBasis,
+        status: "ACTIVE"
       }
     });
   }
@@ -100,7 +101,8 @@ async function main() {
       text: {
         notIn: prompts.map((prompt) => prompt.text)
       },
-      status: "ACTIVE"
+      status: "ACTIVE",
+      source: "generated"
     },
     data: {
       status: "ARCHIVED"

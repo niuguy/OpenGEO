@@ -78,6 +78,42 @@ describe("processPromptRun", () => {
     ]);
   });
 
+  it("skips DRAFT prompts without calling the LLM (regression guard for worker DRAFT defense)", async () => {
+    prisma.prompt.findUnique.mockResolvedValue(promptFixture({ status: "DRAFT" }));
+    prisma.promptRun.create.mockResolvedValue({ id: "run-skipped" });
+
+    const { processPromptRun } = await import("./process-prompt-job");
+    const runId = await processPromptRun("prompt-1");
+
+    expect(runId).toBe("run-skipped");
+    expect(generateAnswer).not.toHaveBeenCalled();
+    expect(extractAnswer).not.toHaveBeenCalled();
+    expect(prisma.promptRun.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "FAILED",
+          error: "prompt not active (status=DRAFT)"
+        })
+      })
+    );
+    expect(prisma.promptRun.update).not.toHaveBeenCalled();
+  });
+
+  it("skips ARCHIVED prompts the same way", async () => {
+    prisma.prompt.findUnique.mockResolvedValue(promptFixture({ status: "ARCHIVED" }));
+    prisma.promptRun.create.mockResolvedValue({ id: "run-skipped" });
+
+    const { processPromptRun } = await import("./process-prompt-job");
+    await processPromptRun("prompt-1");
+
+    expect(generateAnswer).not.toHaveBeenCalled();
+    expect(prisma.promptRun.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "FAILED", error: "prompt not active (status=ARCHIVED)" })
+      })
+    );
+  });
+
   it("completes the prompt run when tracing returns no IDs", async () => {
     prisma.prompt.findUnique.mockResolvedValue(promptFixture());
     prisma.promptRun.create.mockResolvedValue({ id: "run-1" });
@@ -110,13 +146,14 @@ describe("processPromptRun", () => {
   });
 });
 
-function promptFixture() {
+function promptFixture(overrides: { status?: "DRAFT" | "ACTIVE" | "ARCHIVED" } = {}) {
   return {
     id: "prompt-1",
     businessId: "business-1",
     text: "best dentist in Woking",
     clusterId: "best-local-category",
     clusterIntent: "Best local provider recommendation",
+    status: overrides.status ?? "ACTIVE",
     business: {
       id: "business-1",
       name: "Example Dental Clinic",

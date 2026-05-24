@@ -55,7 +55,7 @@ export function BusinessForm() {
     }
 
     const data = (await response.json()) as { business: { id: string } };
-    router.push(`/businesses/${data.business.id}`);
+    router.push(`/businesses/${data.business.id}/prompts`);
   }
 
   return (

@@ -40,6 +40,26 @@ export async function processPromptRun(
     throw new Error(`Prompt not found: ${promptId}`);
   }
 
+  // Defense in depth: the API enqueue path filters by status=ACTIVE, but if a
+  // DRAFT/ARCHIVED prompt id ever reaches the worker (bug, manual call,
+  // misconfigured monitoring sweep), do not spend LLM money. Record a FAILED
+  // run so the skip is visible in history.
+  if (prompt.status !== "ACTIVE") {
+    const skipped = await prisma.promptRun.create({
+      data: {
+        promptId: prompt.id,
+        evaluationRunId: options.evaluationRunId,
+        provider: options.provider ?? "chatgpt",
+        sampleIndex: options.sampleIndex ?? 0,
+        model: initialModelForProvider(options.provider ?? "chatgpt"),
+        status: "FAILED",
+        error: `prompt not active (status=${prompt.status})`,
+        completedAt: new Date()
+      }
+    });
+    return skipped.id;
+  }
+
   const run = await prisma.promptRun.create({
     data: {
       promptId: prompt.id,

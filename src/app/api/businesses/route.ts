@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createBusinessSchema } from "@/lib/business-schema";
 import { prisma } from "@/lib/prisma";
+import { generatePromptsForBusiness } from "@/lib/prompts";
+import { persistGeneratedPrompts } from "@/lib/prompts/persist";
 import { trackEvent } from "@/lib/telemetry";
 
 export async function GET() {
@@ -43,12 +45,22 @@ export async function POST(request: Request) {
     }
   });
 
+  const generated = generatePromptsForBusiness({
+    name: business.name,
+    category: business.category,
+    location: business.location,
+    competitors: business.competitors.map((c) => c.name),
+    attributes: business.targetAttributes
+  });
+  await persistGeneratedPrompts(business.id, generated);
+
   await trackEvent("business_created", {
     businessId: business.id,
     category: business.category,
     location: business.location,
     competitorCount: business.competitors.length,
-    attributeCount: business.targetAttributes.length
+    attributeCount: business.targetAttributes.length,
+    generatedPromptCount: generated.length
   });
 
   return NextResponse.json({ business }, { status: 201 });

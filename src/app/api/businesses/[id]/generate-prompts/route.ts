@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { generatePromptsForBusiness } from "@/lib/prompts";
+import { persistGeneratedPrompts } from "@/lib/prompts/persist";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 
@@ -20,7 +21,7 @@ export async function POST(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Business not found" }, { status: 404 });
   }
 
-  const prompts = generatePromptsForBusiness({
+  const generated = generatePromptsForBusiness({
     name: business.name,
     category: business.category,
     location: business.location,
@@ -28,39 +29,18 @@ export async function POST(_request: Request, context: RouteContext) {
     attributes: business.targetAttributes
   });
 
-  const records = [];
-  for (const prompt of prompts) {
-    const record = await prisma.prompt.upsert({
-      where: {
-        businessId_text: {
-          businessId: business.id,
-          text: prompt.text
-        }
-      },
-      update: {
-        template: prompt.template,
-        clusterId: prompt.clusterId,
-        clusterIntent: prompt.clusterIntent,
-        samplingBasis: prompt.samplingBasis,
-        status: "ACTIVE"
-      },
-      create: {
-        businessId: business.id,
-        text: prompt.text,
-        template: prompt.template,
-        clusterId: prompt.clusterId,
-        clusterIntent: prompt.clusterIntent,
-        samplingBasis: prompt.samplingBasis
-      }
-    });
-    records.push(record);
-  }
+  await persistGeneratedPrompts(business.id, generated);
+
+  const records = await prisma.prompt.findMany({
+    where: { businessId: business.id, source: "generated" },
+    orderBy: { createdAt: "asc" }
+  });
 
   await trackEvent("prompts_generated", {
     businessId: business.id,
     category: business.category,
     location: business.location,
-    promptCount: records.length
+    promptCount: generated.length
   });
 
   return NextResponse.json({ prompts: records });

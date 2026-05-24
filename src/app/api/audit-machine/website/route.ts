@@ -3,6 +3,7 @@ import { z } from "zod";
 import { crawlWebsite } from "@/lib/audit/site-crawler";
 import { inferBusinessProfile } from "@/lib/audit/site-profiler";
 import { generatePromptsForBusiness } from "@/lib/prompts";
+import { persistGeneratedPrompts } from "@/lib/prompts/persist";
 import { prisma } from "@/lib/prisma";
 import { trackEvent } from "@/lib/telemetry";
 
@@ -46,18 +47,8 @@ export async function POST(request: Request) {
         })
       : [];
 
-    if (business) {
-      await prisma.prompt.createMany({
-        data: prompts.map((prompt) => ({
-          businessId: business.id,
-          text: prompt.text,
-          template: prompt.template,
-          clusterId: prompt.clusterId,
-          clusterIntent: prompt.clusterIntent,
-          samplingBasis: prompt.samplingBasis
-        })),
-        skipDuplicates: true
-      });
+    if (business && prompts.length > 0) {
+      await persistGeneratedPrompts(business.id, prompts);
     }
 
     const audit = await prisma.websiteAudit.create({
