@@ -85,7 +85,10 @@ describe("generateAnswer", () => {
     expect(result.trace.tokenUsage?.total_tokens).toBe(15);
     expect(completionCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        temperature: 0.7,
+        // PR-A: observation path is locked to temperature=0; the env-var
+        // override was removed because one stale .env was enough to silently
+        // revert the reproducibility moat.
+        temperature: 0,
         messages: expect.arrayContaining([
           {
             role: "user",
@@ -96,6 +99,57 @@ describe("generateAnswer", () => {
     );
     expect(JSON.stringify(completionCreate.mock.calls[0][0].messages)).not.toContain("Target business");
     expect(finishTrace).toHaveBeenCalledWith(expect.anything(), "Recommended answer");
+  });
+
+  it("forwards the seed when provided and surfaces system_fingerprint in the result", async () => {
+    createTraceHandle.mockReturnValue(null);
+    completionCreate.mockResolvedValue({
+      choices: [{ message: { content: "Answer" } }],
+      usage: null,
+      system_fingerprint: "fp_8f3e2a"
+    });
+
+    const { generateAnswer, deterministicSeed } = await import("./openai-client");
+    const seed = deterministicSeed("business-1", "prompt-1", 0);
+    const result = await generateAnswer(
+      "best dentist in Woking",
+      {
+        businessId: "business-1",
+        businessName: "Example Dental Clinic",
+        category: "dentist",
+        location: "Woking, Surrey",
+        competitors: [],
+        targetAttributes: []
+      },
+      {
+        evaluationRunId: "eval-1",
+        promptClusterId: "cluster-1",
+        promptClusterIntent: "Best local provider",
+        promptId: "prompt-1",
+        sampleIndex: 0
+      },
+      {},
+      "chatgpt",
+      { seed }
+    );
+
+    expect(completionCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        temperature: 0,
+        seed
+      })
+    );
+    expect(result.systemFingerprint).toBe("fp_8f3e2a");
+    expect(result.seed).toBe(BigInt(seed));
+    expect(result.temperature).toBe(0);
+  });
+
+  it("deterministicSeed is stable per (businessId, promptId, sampleIndex)", async () => {
+    const { deterministicSeed } = await import("./openai-client");
+    expect(deterministicSeed("biz-1", "p-1", 0)).toBe(deterministicSeed("biz-1", "p-1", 0));
+    expect(deterministicSeed("biz-1", "p-1", 0)).not.toBe(deterministicSeed("biz-1", "p-1", 1));
+    expect(deterministicSeed("biz-1", "p-1", 0)).not.toBe(deterministicSeed("biz-2", "p-1", 0));
+    expect(deterministicSeed("biz-1", "p-1", 0)).not.toBe(deterministicSeed("biz-1", "p-2", 0));
   });
 
   it("continues OpenAI call flow when tracing is unavailable", async () => {

@@ -54,7 +54,40 @@ export type AnswerResult = {
   provider: ObservationProvider;
   model: string;
   rawAnswer: string;
+  // Determinism provenance. Null when the provider doesn't expose them
+  // (Google AI Overview has no temp/seed/fingerprint at all; Gemini honors
+  // seed best-effort but does not return a fingerprint).
+  temperature: number | null;
+  seed: bigint | null;
+  systemFingerprint: string | null;
   trace: TraceResult;
+};
+
+// Pinned default model for the observation path. The point of pinning is that
+// "gpt-4o-mini" as an alias silently rotates underneath us. Override with
+// OPENAI_OBSERVATION_MODEL — but always use a dated build (e.g.
+// "gpt-4o-mini-2024-07-18") in production so the moat claim is verifiable.
+const PINNED_OBSERVATION_MODEL = "gpt-4o-mini-2024-07-18";
+
+// Composite seed: stable per (business, prompt, sampleIndex). hash32 returns a
+// 32-bit unsigned int suitable for OpenAI's `seed` parameter and idempotent
+// across machines.
+export function deterministicSeed(businessId: string, promptId: string, sampleIndex: number): number {
+  return hash32(`${businessId}|${promptId}|${sampleIndex}`);
+}
+
+function hash32(input: string): number {
+  // FNV-1a 32-bit. Deterministic, no deps, fast.
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+export type GenerateAnswerOptions = {
+  seed?: number;
 };
 
 type ObservedClientOptions = {
@@ -164,17 +197,18 @@ export async function generateAnswer(
   context: BusinessContext,
   trace: PromptRunTraceInput,
   auth: OpenAIAuth = {},
-  provider: ObservationProvider = "chatgpt"
+  provider: ObservationProvider = "chatgpt",
+  options: GenerateAnswerOptions = {}
 ): Promise<AnswerResult> {
   if (provider === "gemini") {
-    return generateGeminiAnswer(prompt, trace);
+    return generateGeminiAnswer(prompt, trace, options);
   }
 
   if (provider === "google_ai_overview") {
     return generateGoogleAiOverviewAnswer(prompt, trace);
   }
 
-  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+  const model = process.env.OPENAI_OBSERVATION_MODEL || PINNED_OBSERVATION_MODEL;
   const metadata = buildPromptRunMetadata(context, trace, model);
   const handle = createTraceHandle("local-ai-visibility.prompt-run", {
     input: prompt,
@@ -189,11 +223,17 @@ export async function generateAnswer(
     handle
   });
   const startedAt = Date.now();
+  const seed = options.seed;
+  // Hard-coded temperature=0 on the observation path: the reproducibility moat
+  // depends on this being non-overridable. An env var here would be a footgun
+  // — one stale .env reverts the determinism claim silently.
+  const temperature = 0;
 
   try {
     const completion = await client.chat.completions.create({
       model,
-      temperature: Number(process.env.OPENAI_OBSERVATION_TEMPERATURE || 0.7),
+      temperature,
+      ...(seed !== undefined ? { seed } : {}),
       messages: [
         {
           role: "system",
@@ -206,6 +246,7 @@ export async function generateAnswer(
       ]
     });
     const rawAnswer = completion.choices[0]?.message?.content ?? "";
+    const systemFingerprint = completion.system_fingerprint ?? null;
 
     finishTrace(handle, rawAnswer);
 
@@ -213,6 +254,9 @@ export async function generateAnswer(
       provider,
       model,
       rawAnswer,
+      temperature,
+      seed: seed !== undefined ? BigInt(seed) : null,
+      systemFingerprint,
       trace: {
         langfuseTraceId: handle?.traceId ?? null,
         langfuseObservationId: handle?.observationId ?? null,
@@ -227,7 +271,11 @@ export async function generateAnswer(
   }
 }
 
-async function generateGeminiAnswer(prompt: string, trace: PromptRunTraceInput): Promise<AnswerResult> {
+async function generateGeminiAnswer(
+  prompt: string,
+  trace: PromptRunTraceInput,
+  options: GenerateAnswerOptions = {}
+): Promise<AnswerResult> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not set. Add it to .env before running Gemini prompt checks.");
@@ -241,10 +289,17 @@ async function generateGeminiAnswer(prompt: string, trace: PromptRunTraceInput):
     timeout: Number(process.env.GEMINI_TIMEOUT_MS || process.env.OPENAI_TIMEOUT_MS || 30000),
     httpAgent: getProxyAgent()
   });
+  const seed = options.seed;
+  const temperature = 0;
 
   const completion = await client.chat.completions.create({
     model,
-    temperature: Number(process.env.GEMINI_OBSERVATION_TEMPERATURE || process.env.OPENAI_OBSERVATION_TEMPERATURE || 0.7),
+    temperature,
+    // Gemini's OpenAI-compatible endpoint accepts `seed`; honor is best-effort
+    // and not formally guaranteed. We pass it for parity and audit-trail
+    // purposes; if it's silently dropped, runs will still be reproducible at
+    // temperature=0 in most cases.
+    ...(seed !== undefined ? { seed } : {}),
     messages: [
       {
         role: "system",
@@ -261,6 +316,10 @@ async function generateGeminiAnswer(prompt: string, trace: PromptRunTraceInput):
     provider: "gemini",
     model,
     rawAnswer: completion.choices[0]?.message?.content ?? "",
+    temperature,
+    seed: seed !== undefined ? BigInt(seed) : null,
+    // Gemini does not return system_fingerprint via this endpoint.
+    systemFingerprint: null,
     trace: {
       langfuseTraceId: null,
       langfuseObservationId: null,
@@ -330,6 +389,12 @@ async function generateGoogleAiOverviewAnswer(prompt: string, trace: PromptRunTr
     provider: "google_ai_overview",
     model: process.env.GOOGLE_AIO_MODEL || "google-ai-overview",
     rawAnswer,
+    // SearchAPI Google AI Overview has no temperature/seed/fingerprint
+    // semantics — it scrapes Google. Reproducibility on this provider is
+    // best-effort and time-bound; the dashboard must label it accordingly.
+    temperature: null,
+    seed: null,
+    systemFingerprint: null,
     trace: {
       langfuseTraceId: null,
       langfuseObservationId: null,

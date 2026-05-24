@@ -1,9 +1,10 @@
 import { prisma } from "./prisma";
-import { extractAnswer, generateAnswer } from "./ai/openai-client";
+import { deterministicSeed, extractAnswer, generateAnswer } from "./ai/openai-client";
 import type { ObservationProvider } from "./ai/openai-client";
 import type { ExtractionResultPayload } from "./extraction-schema";
 import { calculateGeoMetrics } from "./geo-metrics";
 import { trackEvent } from "./telemetry";
+import { targetNameMatches } from "./text/jaro-winkler";
 
 function normalizeName(value: string) {
   return value.trim().toLowerCase();
@@ -81,6 +82,11 @@ export async function processPromptRun(
       targetAttributes: prompt.business.targetAttributes
     };
     const evaluationRunId = options.evaluationRunId || run.id;
+    const sampleIndex = options.sampleIndex ?? 0;
+    // Deterministic per (business, prompt, sample). Same tuple = same seed,
+    // every time. Different samples of the same prompt get different seeds so
+    // future N=5 sampling can surface legitimate variance.
+    const seed = deterministicSeed(prompt.businessId, prompt.id, sampleIndex);
 
     const answer = await generateAnswer(
       prompt.text,
@@ -90,10 +96,11 @@ export async function processPromptRun(
         promptClusterId: prompt.clusterId,
         promptClusterIntent: prompt.clusterIntent,
         promptId: prompt.id,
-        sampleIndex: options.sampleIndex ?? 0
+        sampleIndex
       },
       { apiKey: options.openAiApiKey },
-      options.provider ?? "chatgpt"
+      options.provider ?? "chatgpt",
+      { seed }
     );
 
     await prisma.promptRun.update({
@@ -102,6 +109,9 @@ export async function processPromptRun(
         evaluationRunId,
         provider: answer.provider,
         model: answer.model,
+        temperature: answer.temperature,
+        seed: answer.seed,
+        systemFingerprint: answer.systemFingerprint,
         rawAnswer: answer.rawAnswer,
         tokenUsage: answer.trace.tokenUsage ?? undefined,
         langfuseTraceId: answer.trace.langfuseTraceId,
@@ -125,11 +135,24 @@ export async function processPromptRun(
     );
     const targetRank = resolveTargetRank(extraction, prompt.business.name);
 
+    // Deterministic target-name match — overrides the LLM's `targetAppears`
+    // judgement whenever we have any mentionedBusinesses to compare against.
+    // The LLM keeps the soft-extraction job (reasons, sentiment, sources);
+    // the binary "did the target appear" question becomes a measurable
+    // string-similarity check, not a model verdict.
+    const deterministic = targetNameMatches(extraction.mentionedBusinesses, prompt.business.name);
+    const useDeterministic = extraction.mentionedBusinesses.length > 0;
+    const targetAppears = useDeterministic ? deterministic.matched : extraction.targetAppears;
+    const detectionMethod = useDeterministic ? "deterministic" : "llm";
+
     await prisma.promptRun.update({
       where: { id: run.id },
       data: {
         model: answer.model,
         provider: answer.provider,
+        temperature: answer.temperature,
+        seed: answer.seed,
+        systemFingerprint: answer.systemFingerprint,
         rawAnswer: answer.rawAnswer,
         tokenUsage: answer.trace.tokenUsage ?? undefined,
         langfuseTraceId: answer.trace.langfuseTraceId,
@@ -139,8 +162,9 @@ export async function processPromptRun(
         completedAt: new Date(),
         extractionResult: {
           create: {
-            targetAppears: extraction.targetAppears,
+            targetAppears,
             targetRank,
+            detectionMethod,
             sentiment: extraction.sentiment,
             reasons: extraction.reasons,
             sources: extraction.sources,
@@ -179,7 +203,8 @@ export async function processPromptRun(
       promptId: prompt.id,
       provider: answer.provider,
       model: answer.model,
-      targetAppears: extraction.targetAppears,
+      targetAppears,
+      detectionMethod,
       directApiKeyUsed: Boolean(options.openAiApiKey)
     });
   } catch (error) {

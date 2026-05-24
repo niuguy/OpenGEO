@@ -170,6 +170,9 @@ model PromptRun {
   provider              String            @default("chatgpt")
   sampleIndex           Int               @default(0)
   model                 String
+  temperature           Float?
+  seed                  BigInt?
+  systemFingerprint     String?
   rawAnswer             String?
   status                RunStatus         @default(PENDING)
   error                 String?
@@ -198,6 +201,7 @@ model ExtractionResult {
   reasons             String[]
   sources             String[]
   confidence          Float
+  detectionMethod     String              @default("llm")
   extractedAt         DateTime            @default(now())
   promptRun           PromptRun           @relation(fields: [promptRunId], references: [id], onDelete: Cascade)
   mentionedBusinesses MentionedBusiness[]

@@ -32,20 +32,19 @@ function prompt(
   clusterIntent: string,
   samplingBasis: GeneratedPrompt["samplingBasis"]
 ): GeneratedPrompt {
+  // PR-A: prompts are now clean consumer queries. Earlier versions appended an
+  // "explain why you recommend them, cite reference signals like NHS / ..."
+  // suffix to ground the LLM. That suffix biased every answer toward heavy
+  // citation and degraded the moat claim ("real consumer behaviour"). The
+  // deterministic name match downstream is what we use now for the
+  // targetAppears decision; the LLM only contributes soft fields.
   return {
-    text: withEvidenceRequest(text),
+    text,
     template,
     clusterId,
     clusterIntent,
     samplingBasis
   };
-}
-
-function withEvidenceRequest(question: string) {
-  return [
-    question,
-    "Please briefly explain why you recommend them and mention the evidence or reference signals you are using, such as Google Maps reviews, Trustpilot, clinic websites, NHS or private listings, local directories, opening hours, and service pages. If you are unsure or cannot verify a source, say so."
-  ].join("\n\n");
 }
 
 function uniquePrompts(prompts: GeneratedPrompt[]) {

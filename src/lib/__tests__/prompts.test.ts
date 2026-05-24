@@ -20,7 +20,10 @@ describe("generatePromptsForBusiness", () => {
         prompt.text.startsWith("compare Example Dental Clinic with Bupa Dental Care Woking, Portmore Dental in Woking, Surrey")
       )
     ).toBe(true);
-    expect(prompts.every((prompt) => prompt.text.includes("evidence or reference signals"))).toBe(true);
+    // PR-A: the evidence-grounding suffix was removed so prompts read like
+    // real consumer queries. The previous assertion checked it was present;
+    // now it must NOT be present.
+    expect(prompts.every((prompt) => !prompt.text.includes("evidence or reference signals"))).toBe(true);
     expect(prompts.every((prompt) => prompt.samplingBasis.intent)).toBe(true);
     expect(prompts.every((prompt) => prompt.samplingBasis.wordingStyle)).toBe(true);
   });
