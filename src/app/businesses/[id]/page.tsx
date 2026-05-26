@@ -4,9 +4,14 @@ import { DashboardActions } from "@/components/dashboard-actions";
 import { getBusinessDashboard } from "@/lib/dashboard";
 import { prisma } from "@/lib/prisma";
 import { ProgressBar, InfoIcon, Badge } from "@/components/ui-extras";
+import { WhitelabelForm } from "@/components/whitelabel-form";
+import { SnapshotChart } from "@/components/snapshot-chart";
+
+const MIN_PROVIDER_RUNS = 10;
 
 type Props = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 function formatRank(rank: number | null) {
@@ -25,13 +30,19 @@ export async function generateStaticParams() {
   return businesses.map((business) => ({ id: business.id }));
 }
 
-export default async function BusinessDashboardPage({ params }: Props) {
+export default async function BusinessDashboardPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const query = await searchParams;
+  const isManageMode = query.manage !== undefined;
   const dashboard = await getBusinessDashboard(id);
 
   if (!dashboard) {
     notFound();
   }
+
+  const snapshotAgeDays = dashboard.totals.snapshotCreatedAt
+    ? Math.floor((Date.now() - new Date(dashboard.totals.snapshotCreatedAt).getTime()) / 86_400_000)
+    : null;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -53,12 +64,44 @@ export default async function BusinessDashboardPage({ params }: Props) {
             local-intent scenarios.
           </p>
         </div>
-        <Link
-          href={`/businesses/${dashboard.business.id}/runs`}
-          className="focus-ring rounded-md border border-line bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-panel"
-        >
-          Source Data
-        </Link>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex gap-2">
+              <a
+                href={`/api/businesses/${dashboard.business.id}/report.pdf`}
+                download
+                className="focus-ring rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+              >
+                Download PDF
+              </a>
+              <Link
+                href={`/businesses/${dashboard.business.id}/runs`}
+                className="focus-ring rounded-md border border-line bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-panel"
+              >
+                Source Data
+              </Link>
+            </div>
+            {isManageMode && (
+              <details className="text-right">
+                <summary className="cursor-pointer text-[10px] text-muted hover:text-ink transition-colors">
+                  White-label for agency →
+                </summary>
+                <WhitelabelForm businessId={dashboard.business.id} />
+              </details>
+            )}
+          </div>
+          {snapshotAgeDays !== null && (
+            <p className={`text-xs ${snapshotAgeDays > 14 ? "text-amber-600" : "text-muted"}`}>
+              Last updated{" "}
+              {snapshotAgeDays === 0
+                ? "today"
+                : snapshotAgeDays === 1
+                  ? "yesterday"
+                  : `${snapshotAgeDays} days ago`}
+              {snapshotAgeDays > 14 ? " · consider re-running" : ""}
+            </p>
+          )}
+        </div>
       </div>
 
       <section className="mt-6 rounded-lg border border-line bg-white p-5 shadow-sm">
@@ -104,7 +147,10 @@ export default async function BusinessDashboardPage({ params }: Props) {
               className="mt-4"
             />
             <p className="mt-4 text-xs leading-5 text-muted">
-              Share of all target-plus-competitor mentions captured in the
+              Share of all target-plus-competitor mentions captured in{" "}
+              <span className="font-medium text-ink">
+                {dashboard.totals.completedRunCount}
+              </span>{" "}
               sampled recommendations.
             </p>
           </div>
@@ -127,55 +173,71 @@ export default async function BusinessDashboardPage({ params }: Props) {
             />
             <p className="mt-4 text-xs leading-5 text-muted">
               Confidence score derived from sample coverage and answer
-              volatility.
+              volatility across{" "}
+              <span className="font-medium text-ink">
+                {dashboard.totals.completedRunCount}
+              </span>{" "}
+              runs.
             </p>
           </div>
         </div>
       </section>
 
+      <SnapshotChart history={dashboard.snapshotHistory} />
+
       <div className="mt-6 grid gap-4 md:grid-cols-4">
-        {[
+        {(
           [
-            "Recommendation rate",
-            `${dashboard.totals.recommendationRate}%`,
-            "Percentage of prompts where the target was specifically recommended.",
-          ],
-          [
-            "Position-weighted visibility",
-            `${dashboard.totals.positionWeightedVisibility}%`,
-            "Score adjusted for the rank position of the target.",
-          ],
-          [
-            "Average observed position",
-            formatRank(dashboard.totals.averageRank),
-            "Mean rank when the target appears in recommendations.",
-          ],
-          [
-            "Consistency",
-            `${dashboard.totals.recommendationConsistency}%`,
-            "How often the target appears in the same position across similar prompts.",
-          ],
-          [
-            "Volatility",
-            `${dashboard.totals.volatilityScore}%`,
-            "Measure of how much recommendations change across runs.",
-          ],
-          [
-            "Competitor share",
-            `${dashboard.totals.competitorShare}%`,
-            "Percentage of mentions belonging to direct competitors.",
-          ],
-          [
-            "Source diversity",
-            String(dashboard.totals.sourceDiversity),
-            "Number of unique domains/sources cited by the AI.",
-          ],
-          [
-            "Source mentions",
-            String(dashboard.totals.sourceMentions),
-            "Total count of external citations found in answers.",
-          ],
-        ].map(([label, value, info]) => (
+            {
+              label: "Recommendation rate",
+              value: `${dashboard.totals.recommendationRate}%`,
+              info: "Percentage of prompts where the target was specifically recommended.",
+              note: `n=${dashboard.totals.completedRunCount}`,
+            },
+            {
+              label: "Position-weighted visibility",
+              value: `${dashboard.totals.positionWeightedVisibility}%`,
+              info: "Score adjusted for the rank position of the target.",
+              note: `n=${dashboard.totals.completedRunCount}`,
+            },
+            {
+              label: "Average observed position",
+              value: formatRank(dashboard.totals.averageRank),
+              info: "Mean rank when the target appears in recommendations.",
+              note: null,
+            },
+            {
+              label: "Consistency",
+              value: `${dashboard.totals.recommendationConsistency}%`,
+              info: "How often the target appears in the same position across similar prompts.",
+              note: `n=${dashboard.totals.completedRunCount}`,
+            },
+            {
+              label: "Volatility",
+              value: `${dashboard.totals.volatilityScore}%`,
+              info: "Measure of how much recommendations change across runs.",
+              note: `n=${dashboard.totals.completedRunCount}`,
+            },
+            {
+              label: "Competitor share",
+              value: `${dashboard.totals.competitorShare}%`,
+              info: "Percentage of mentions belonging to direct competitors.",
+              note: `n=${dashboard.totals.completedRunCount}`,
+            },
+            {
+              label: "Source diversity",
+              value: String(dashboard.totals.sourceDiversity),
+              info: "Number of unique domains/sources cited by the AI.",
+              note: null,
+            },
+            {
+              label: "Source mentions",
+              value: String(dashboard.totals.sourceMentions),
+              info: "Total count of external citations found in answers.",
+              note: null,
+            },
+          ] as const
+        ).map(({ label, value, info, note }) => (
           <div
             key={label}
             className="rounded-lg border border-line bg-white p-5 shadow-sm"
@@ -185,6 +247,9 @@ export default async function BusinessDashboardPage({ params }: Props) {
               <InfoIcon title={info} />
             </div>
             <p className="mt-2 text-3xl font-semibold text-ink">{value}</p>
+            {note ? (
+              <p className="mt-1 text-[10px] text-muted">{note}</p>
+            ) : null}
           </div>
         ))}
       </div>
@@ -208,9 +273,66 @@ export default async function BusinessDashboardPage({ params }: Props) {
         ))}
       </div>
 
-      <div className="mt-6">
-        <DashboardActions businessId={dashboard.business.id} />
-      </div>
+      {isManageMode && (
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <DashboardActions
+            businessId={dashboard.business.id}
+            monitoringEnabled={dashboard.monitoring.enabled}
+            monitoringIntervalDays={dashboard.monitoring.intervalDays}
+            alertEmail={dashboard.monitoring.alertEmail ?? null}
+          />
+
+          <div className="rounded-lg border border-line bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-ink">Monitoring status</h2>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                dashboard.monitoring.enabled
+                  ? "bg-green-50 text-green-700"
+                  : "bg-panel text-muted"
+              }`}>
+                {dashboard.monitoring.enabled ? "Active" : "Off"}
+              </span>
+            </div>
+            {dashboard.monitoring.enabled ? (
+              <div className="mt-3 space-y-1 text-xs text-muted">
+                <p>Interval: every {dashboard.monitoring.intervalDays} {dashboard.monitoring.intervalDays === 1 ? "day" : "days"}</p>
+                {dashboard.monitoring.lastMonitoredAt && (
+                  <p>Last run: {new Date(dashboard.monitoring.lastMonitoredAt).toLocaleDateString()}</p>
+                )}
+                {dashboard.monitoring.nextRunAt && (
+                  <p>Next run: {new Date(dashboard.monitoring.nextRunAt).toLocaleDateString()}</p>
+                )}
+              </div>
+            ) : (
+              <p className="mt-3 text-xs text-muted">Enable monitoring above to automatically track visibility changes over time.</p>
+            )}
+
+            {dashboard.monitoring.recentAlerts.length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs font-semibold text-ink">Recent alerts</p>
+                <div className="mt-2 space-y-2">
+                  {dashboard.monitoring.recentAlerts.map((alert) => (
+                    <div key={alert.id} className={`rounded-md border p-2 text-xs ${
+                      alert.direction === "dropped"
+                        ? "border-red-100 bg-red-50 text-red-700"
+                        : "border-green-100 bg-green-50 text-green-700"
+                    }`}>
+                      <span className="font-semibold capitalize">{alert.direction}</span>
+                      {" "}by {Math.abs(alert.delta)} points
+                      {" "}({alert.previousScore}% → {alert.newScore}%)
+                      <span className="ml-2 text-[10px] opacity-70">{alert.provider} · {new Date(alert.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {dashboard.monitoring.recentAlerts.length === 0 && dashboard.monitoring.enabled && (
+              <p className="mt-4 text-xs text-muted">No alerts yet. You will be notified here when visibility changes by 10+ points.</p>
+            )}
+          </div>
+        </div>
+      )}
 
       <section className="mt-8 rounded-lg border border-line bg-white p-5 shadow-sm">
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
@@ -256,9 +378,18 @@ export default async function BusinessDashboardPage({ params }: Props) {
             </div>
           </div>
           <div>
+            <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-ink">
               Coverage shown, prompt bank private
             </h3>
+            <a
+              href={`/api/businesses/${dashboard.business.id}/prompts.csv`}
+              download
+              className="text-xs text-accent hover:underline"
+            >
+              Download prompt list (CSV)
+            </a>
+          </div>
             <div className="mt-3 flex flex-wrap gap-2">
               {dashboard.methodology.intentCoverage.map((item) => (
                 <span
@@ -328,25 +459,33 @@ export default async function BusinessDashboardPage({ params }: Props) {
                   >
                     <td className="py-3 font-semibold text-ink">{row.label}</td>
                     <td className="py-3 text-muted">{row.completedRunCount}</td>
-                    <td className="py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="w-8 font-medium text-ink">
-                          {row.visibilityScore}%
-                        </span>
-                        <ProgressBar
-                          value={row.visibilityScore}
-                          className="w-16"
-                        />
-                      </div>
-                    </td>
-                    <td className="py-3 text-muted">
-                      {row.recommendationRate}%
-                    </td>
-                    <td className="py-3 text-muted">{row.shareOfVoice}%</td>
-                    <td className="py-3 text-muted">
-                      {formatRank(row.averageRank)}
-                    </td>
-                    <td className="py-3 text-muted">{row.consistency}%</td>
+                    {row.completedRunCount < MIN_PROVIDER_RUNS ? (
+                      <td colSpan={5} className="py-3 text-xs text-amber-600">
+                        Insufficient data — need at least {MIN_PROVIDER_RUNS} runs for reliable metrics
+                      </td>
+                    ) : (
+                      <>
+                        <td className="py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-8 font-medium text-ink">
+                              {row.visibilityScore}%
+                            </span>
+                            <ProgressBar
+                              value={row.visibilityScore}
+                              className="w-16"
+                            />
+                          </div>
+                        </td>
+                        <td className="py-3 text-muted">
+                          {row.recommendationRate}%
+                        </td>
+                        <td className="py-3 text-muted">{row.shareOfVoice}%</td>
+                        <td className="py-3 text-muted">
+                          {formatRank(row.averageRank)}
+                        </td>
+                        <td className="py-3 text-muted">{row.consistency}%</td>
+                      </>
+                    )}
                   </tr>
                 ))
               )}
@@ -460,6 +599,19 @@ export default async function BusinessDashboardPage({ params }: Props) {
           <h2 className="font-semibold text-ink">
             Competitors appear, target missing
           </h2>
+          {dashboard.competitorGapReasons.length > 0 && (
+            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+              <p className="text-xs font-semibold text-amber-800">Why competitors are chosen instead</p>
+              <ul className="mt-2 space-y-1">
+                {dashboard.competitorGapReasons.map(({ reason, count }) => (
+                  <li key={reason} className="flex items-start gap-2 text-xs text-amber-700">
+                    <span className="mt-0.5 shrink-0 font-bold">{count}×</span>
+                    <span>{reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="mt-4 space-y-3">
             {dashboard.competitorOnlyPrompts.length === 0 ? (
               <p className="text-sm text-muted">
@@ -550,9 +702,17 @@ export default async function BusinessDashboardPage({ params }: Props) {
         </div>
 
         <div className="rounded-lg border border-line bg-white p-5 shadow-sm">
-          <h2 className="font-semibold text-ink">
-            Reference signals mentioned
-          </h2>
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="font-semibold text-ink">
+              Reference signals mentioned
+            </h2>
+            <span className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+              AI-cited · unverified
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-muted">
+            Sources cited by the AI in its answers. Not independently confirmed — treat as signals to investigate, not facts.
+          </p>
           <div className="mt-4 space-y-3">
             {dashboard.referenceSignals.length === 0 ? (
               <p className="text-sm text-muted">
@@ -565,15 +725,17 @@ export default async function BusinessDashboardPage({ params }: Props) {
                   className="border-b border-line pb-3 last:border-0"
                 >
                   <p className="text-sm font-medium text-ink">
-                    {signal.label} · {signal.count}
+                    {signal.label} · {signal.count}×
                   </p>
                   <p className="mt-1 text-xs text-muted">
                     {signal.sourceType.replaceAll("_", " ")}
-                    {signal.url ? ` · ${signal.url}` : ""}
+                    {signal.url ? (
+                      <> · <a href={signal.url} className="text-accent hover:underline" target="_blank" rel="noopener noreferrer">{signal.url}</a></>
+                    ) : " · no URL"}
                   </p>
                   {signal.evidence ? (
-                    <p className="mt-2 text-sm leading-6 text-muted">
-                      {signal.evidence}
+                    <p className="mt-2 text-xs leading-5 text-muted italic">
+                      &ldquo;{signal.evidence}&rdquo;
                     </p>
                   ) : null}
                 </div>
@@ -621,7 +783,7 @@ export default async function BusinessDashboardPage({ params }: Props) {
         </div>
       </section>
 
-      <section className="mt-8 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+      <section className="mt-8">
         <div className="rounded-lg border border-line bg-white p-5 shadow-sm">
           <h2 className="font-semibold text-ink">Prompt coverage</h2>
           <p className="mt-2 text-sm leading-6 text-muted">
@@ -638,7 +800,7 @@ export default async function BusinessDashboardPage({ params }: Props) {
               </span>
             ))}
           </div>
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 grid gap-x-6 gap-y-2 sm:grid-cols-2">
             {dashboard.promptStatuses.slice(0, 8).map((prompt) => (
               <div
                 key={prompt.id}

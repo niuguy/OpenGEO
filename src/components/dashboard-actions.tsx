@@ -6,15 +6,20 @@ import { ProgressBar } from "./ui-extras";
 
 type Props = {
   businessId: string;
+  monitoringEnabled: boolean;
+  monitoringIntervalDays: number;
+  alertEmail: string | null;
 };
 
-export function DashboardActions({ businessId }: Props) {
+export function DashboardActions({ businessId, monitoringEnabled, monitoringIntervalDays, alertEmail: initialAlertEmail }: Props) {
   const router = useRouter();
   const [apiKey, setApiKey] = useState("");
-  const [status, setStatus] = useState<
-    "idle" | "loading" | "error" | "success"
-  >("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">("idle");
   const [message, setMessage] = useState("");
+  const [monitoring, setMonitoring] = useState(monitoringEnabled);
+  const [intervalDays, setIntervalDays] = useState(monitoringIntervalDays);
+  const [alertEmail, setAlertEmail] = useState(initialAlertEmail ?? "");
+  const [monitoringStatus, setMonitoringStatus] = useState<"idle" | "saving">("idle");
 
   async function generatePrompts() {
     setStatus("loading");
@@ -68,6 +73,22 @@ export function DashboardActions({ businessId }: Props) {
     setStatus("success");
     setMessage("Sampling complete. Dashboard results have been updated.");
     setApiKey("");
+    router.refresh();
+  }
+
+  async function saveMonitoring(enabled: boolean, days: number, email?: string) {
+    setMonitoringStatus("saving");
+    await fetch(`/api/businesses/${businessId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        monitoringEnabled: enabled,
+        monitoringIntervalDays: days,
+        alertEmail: (email ?? alertEmail) || null
+      })
+    });
+    setMonitoring(enabled);
+    setMonitoringStatus("idle");
     router.refresh();
   }
 
@@ -174,6 +195,78 @@ export function DashboardActions({ businessId }: Props) {
           {message}
         </div>
       ) : null}
+
+      <div className="mt-6 border-t border-line pt-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-ink">Scheduled monitoring</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Automatically re-run prompts on a recurring interval and alert on visibility changes ≥10 points.
+            </p>
+          </div>
+          <button
+            onClick={() => saveMonitoring(!monitoring, intervalDays)}
+            disabled={monitoringStatus === "saving"}
+            className={`focus-ring relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors disabled:opacity-50 ${
+              monitoring ? "bg-accent" : "bg-line"
+            }`}
+            role="switch"
+            aria-checked={monitoring}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                monitoring ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+        {monitoring && (
+          <div className="mt-3 space-y-3">
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-muted">
+                Every
+                <select
+                  value={intervalDays}
+                  onChange={(e) => {
+                    const days = Number(e.target.value);
+                    setIntervalDays(days);
+                    saveMonitoring(true, days);
+                  }}
+                  className="focus-ring mx-2 rounded-md border border-line px-2 py-1 text-xs text-ink"
+                >
+                  {[1, 3, 7, 14, 30].map((d) => (
+                    <option key={d} value={d}>
+                      {d} {d === 1 ? "day" : "days"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {monitoringStatus === "saving" && (
+                <span className="text-xs text-muted">Saving…</span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={alertEmail}
+                onChange={(e) => setAlertEmail(e.target.value)}
+                placeholder="Alert email (optional)"
+                className="focus-ring flex-1 rounded-md border border-line px-3 py-1.5 text-xs text-ink"
+              />
+              <button
+                onClick={() => saveMonitoring(true, intervalDays, alertEmail)}
+                disabled={monitoringStatus === "saving"}
+                className="focus-ring rounded-md border border-line bg-white px-3 py-1.5 text-xs font-medium hover:bg-panel disabled:opacity-50"
+              >
+                Save
+              </button>
+            </div>
+            <p className="text-[10px] text-muted">
+              Get emailed when visibility changes by 10+ points. Requires SMTP config in .env.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

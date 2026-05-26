@@ -34,14 +34,19 @@ model Business {
   location         String
   websiteUrl       String
   targetAttributes String[]
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  competitors      Competitor[]
-  prompts          Prompt[]
-  snapshots        VisibilitySnapshot[]
-  websiteAudits    WebsiteAudit[]
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  monitoringEnabled      Boolean              @default(false)
+  monitoringIntervalDays Int                  @default(7)
+  lastMonitoredAt        DateTime?
+  alertEmail             String?
+  competitors            Competitor[]
+  prompts                Prompt[]
+  snapshots              VisibilitySnapshot[]
+  websiteAudits          WebsiteAudit[]
 
   @@index([name])
+  @@index([monitoringEnabled, lastMonitoredAt])
 }
 
 model WebsiteAudit {

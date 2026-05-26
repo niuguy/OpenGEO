@@ -3,20 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-const demoCompetitors = [
-  "Bupa Dental Care Woking",
-  "Portmore Dental",
-  "Woking Dental Practice",
-  "The Dental Practice Woking"
+const competitorPlaceholder = [
+  "Competitor Name One",
+  "Competitor Name Two",
+  "Competitor Name Three"
 ].join("\n");
 
-const demoAttributes = [
-  "emergency dentist",
-  "root canal",
-  "nervous patients",
-  "children",
-  "Invisalign",
-  "same-day appointment"
+const attributePlaceholder = [
+  "e.g. same-day appointments",
+  "e.g. free initial consultation",
+  "e.g. fixed-fee pricing"
 ].join("\n");
 
 function lines(value: FormDataEntryValue | null) {
@@ -66,7 +62,7 @@ export function BusinessForm() {
           <input
             name="name"
             required
-            defaultValue="Example Dental Clinic"
+            placeholder="e.g. Smith & Co Accountants, Bright Smile Dental"
             className="focus-ring mt-1 w-full rounded-md border border-line px-3 py-2"
           />
         </label>
@@ -75,7 +71,7 @@ export function BusinessForm() {
           <input
             name="category"
             required
-            defaultValue="dentist"
+            placeholder="e.g. accountant, dentist, solicitor"
             className="focus-ring mt-1 w-full rounded-md border border-line px-3 py-2"
           />
         </label>
@@ -86,7 +82,7 @@ export function BusinessForm() {
           <input
             name="location"
             required
-            defaultValue="Woking, Surrey"
+            placeholder="e.g. Manchester, UK or Bristol, UK"
             className="focus-ring mt-1 w-full rounded-md border border-line px-3 py-2"
           />
         </label>
@@ -96,7 +92,7 @@ export function BusinessForm() {
             name="websiteUrl"
             type="url"
             required
-            defaultValue="https://example.com"
+            placeholder="https://yourbusiness.co.uk"
             className="focus-ring mt-1 w-full rounded-md border border-line px-3 py-2"
           />
         </label>
@@ -106,7 +102,7 @@ export function BusinessForm() {
         <textarea
           name="competitors"
           rows={5}
-          defaultValue={demoCompetitors}
+          placeholder={competitorPlaceholder}
           className="focus-ring mt-1 w-full rounded-md border border-line px-3 py-2"
         />
       </label>
@@ -115,7 +111,7 @@ export function BusinessForm() {
         <textarea
           name="targetAttributes"
           rows={5}
-          defaultValue={demoAttributes}
+          placeholder={attributePlaceholder}
           className="focus-ring mt-1 w-full rounded-md border border-line px-3 py-2"
         />
       </label>

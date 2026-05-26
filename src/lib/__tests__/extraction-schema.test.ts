@@ -25,7 +25,7 @@ describe("extractionResultSchema", () => {
       sources: ["https://example.com"],
       referenceSignals: [
         {
-          sourceType: "clinic_website",
+          sourceType: "business_website",
           label: "Clinic website",
           url: "https://example.com",
           evidence: "The answer mentions the clinic website.",

@@ -14,6 +14,7 @@ type RunRequest = {
   mode?: "queue" | "direct";
   openAiApiKey?: string;
   providers?: ObservationProvider[];
+  activateDrafts?: boolean;
 };
 
 export async function POST(request: Request, context: RouteContext) {
@@ -25,6 +26,14 @@ export async function POST(request: Request, context: RouteContext) {
     ? body.providers
     : parseObservationProviders(process.env.OBSERVATION_PROVIDERS, ["chatgpt"]);
   const evaluationRunId = randomUUID();
+
+  if (body.activateDrafts) {
+    await prisma.prompt.updateMany({
+      where: { businessId: id, status: "DRAFT" },
+      data: { status: "ACTIVE" }
+    });
+  }
+
   const prompts = await prisma.prompt.findMany({
     where: {
       businessId: id,

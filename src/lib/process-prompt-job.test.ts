@@ -10,7 +10,8 @@ const prisma = {
     update: vi.fn()
   },
   visibilitySnapshot: {
-    create: vi.fn()
+    create: vi.fn(),
+    findFirst: vi.fn().mockResolvedValue(null)
   }
 };
 const generateAnswer = vi.fn();
@@ -32,6 +33,8 @@ describe("processPromptRun", () => {
     prisma.promptRun.create.mockReset();
     prisma.promptRun.update.mockReset();
     prisma.visibilitySnapshot.create.mockReset();
+    prisma.visibilitySnapshot.findFirst.mockReset();
+    prisma.visibilitySnapshot.findFirst.mockResolvedValue(null);
     generateAnswer.mockReset();
     extractAnswer.mockReset();
     process.env.OPENAI_MODEL = "gpt-test";

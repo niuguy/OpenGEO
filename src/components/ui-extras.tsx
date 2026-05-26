@@ -19,11 +19,16 @@ export function ProgressBar({
 
 export function InfoIcon({ title }: { title: string }) {
   return (
-    <span
-      className="ml-1.5 inline-flex h-3.5 w-3.5 cursor-help items-center justify-center rounded-full border border-muted text-[10px] font-bold text-muted hover:border-accent hover:text-accent"
-      title={title}
-    >
-      ?
+    <span className="relative ml-1.5 inline-flex group">
+      <span className="inline-flex h-3.5 w-3.5 cursor-help items-center justify-center rounded-full border border-muted text-[10px] font-bold text-muted hover:border-accent hover:text-accent">
+        ?
+      </span>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 w-56 -translate-x-1/2 rounded-md bg-ink px-3 py-2 text-xs leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
+      >
+        {title}
+      </span>
     </span>
   );
 }

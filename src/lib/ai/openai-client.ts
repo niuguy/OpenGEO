@@ -86,10 +86,6 @@ function hash32(input: string): number {
   return hash >>> 0;
 }
 
-export type GenerateAnswerOptions = {
-  seed?: number;
-};
-
 type ObservedClientOptions = {
   traceName: string;
   generationName: string;
@@ -192,6 +188,10 @@ export function buildExtractionMetadata(trace: ExtractionTraceInput) {
   };
 }
 
+export type GenerateAnswerOptions = {
+  seed?: number;
+};
+
 export async function generateAnswer(
   prompt: string,
   context: BusinessContext,
@@ -292,14 +292,12 @@ async function generateGeminiAnswer(
   const seed = options.seed;
   const temperature = 0;
 
+  // Gemini 2.5+ supports `seed`; 2.0 and earlier reject it as an unknown field.
+  const supportsSeeed = model.includes("2.5") || model.includes("2.6");
   const completion = await client.chat.completions.create({
     model,
     temperature,
-    // Gemini's OpenAI-compatible endpoint accepts `seed`; honor is best-effort
-    // and not formally guaranteed. We pass it for parity and audit-trail
-    // purposes; if it's silently dropped, runs will still be reproducible at
-    // temperature=0 in most cases.
-    ...(seed !== undefined ? { seed } : {}),
+    ...(supportsSeeed && seed !== undefined ? { seed } : {}),
     messages: [
       {
         role: "system",
@@ -446,7 +444,7 @@ export async function extractAnswer(
         {
           role: "system",
           content:
-            "Extract structured visibility data from the answer. Use only evidence present in the answer. Rank is the explicit order in the answer when present, otherwise null. Extract referenceSignals for model-cited evidence types such as Google Maps reviews, Trustpilot, clinic websites, NHS/private listings, local directories, opening hours, and service pages. Do not invent URLs; set url to null unless the answer explicitly includes one. If the answer references a source generically, record the source type and label with url null."
+            "Extract structured visibility data from the answer. Use only evidence present in the answer. Rank: use the explicit position when stated numerically (e.g. 'first', '1.', '#1'); when not explicit, infer rank from mention order — first business named is rank 1, second is rank 2. Set rank to null only if the business is not mentioned. Extract referenceSignals for model-cited evidence such as Google Maps reviews, Trustpilot, business websites, professional directories (e.g. NHS, ICAEW, ACCA, Law Society), industry listings, local directories, opening hours, and service pages. Do not invent URLs; set url to null unless the answer explicitly includes one. If the answer references a source generically, record the source type and label with url null. When a business is mentioned in passing without evaluation, use sentiment 'neutral' — reserve 'unknown' only when you cannot determine if the business was mentioned at all."
         },
         {
           role: "user",

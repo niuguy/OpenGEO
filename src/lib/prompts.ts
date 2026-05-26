@@ -25,19 +25,19 @@ function slug(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-function prompt(
+function buildPrompt(
   text: string,
   template: string,
   clusterId: string,
   clusterIntent: string,
   samplingBasis: GeneratedPrompt["samplingBasis"]
 ): GeneratedPrompt {
-  // PR-A: prompts are now clean consumer queries. Earlier versions appended an
-  // "explain why you recommend them, cite reference signals like NHS / ..."
-  // suffix to ground the LLM. That suffix biased every answer toward heavy
-  // citation and degraded the moat claim ("real consumer behaviour"). The
-  // deterministic name match downstream is what we use now for the
-  // targetAppears decision; the LLM only contributes soft fields.
+  // PR-A: prompts are now clean consumer queries. Earlier versions appended a
+  // vertical-aware "explain why you recommend them, cite reference signals
+  // like NHS / ICAEW / ..." suffix to ground the LLM. That suffix biased every
+  // answer toward heavy citation and degraded the moat claim ("real consumer
+  // behaviour"). The deterministic name match downstream is what we use now
+  // for the targetAppears decision; the LLM only contributes soft fields.
   return {
     text,
     template,
@@ -65,6 +65,9 @@ export function generatePromptsForBusiness(input: PromptBusinessInput): Generate
   const business = input.name.trim();
   const competitors = input.competitors.map((name) => name.trim()).filter(Boolean);
   const attributes = input.attributes.map((attribute) => attribute.trim()).filter(Boolean);
+
+  const prompt = (text: string, template: string, clusterId: string, clusterIntent: string, samplingBasis: GeneratedPrompt["samplingBasis"]) =>
+    buildPrompt(text, template, clusterId, clusterIntent, samplingBasis);
 
   const prompts: GeneratedPrompt[] = [
     prompt(
@@ -225,6 +228,44 @@ export function generatePromptsForBusiness(input: PromptBusinessInput): Generate
           persona: slug(attribute) || "specific-need",
           wordingStyle: "conversational",
           decisionMode: "choose"
+        }
+      )
+    );
+  }
+
+  // Broader geographic coverage: if location is "City, Region", also test the region alone
+  const locationParts = location.split(",").map((s) => s.trim()).filter(Boolean);
+  if (locationParts.length >= 2) {
+    const region = locationParts.slice(1).join(", ");
+    prompts.push(
+      prompt(
+        `best ${category} in ${region}`,
+        "best {category} in {region}",
+        "broader-region-search",
+        "Broader region discovery",
+        {
+          intent: "best-provider",
+          locationStyle: "broader-region",
+          specificity: "broad-category",
+          persona: "general-consumer",
+          wordingStyle: "search-like",
+          decisionMode: "best"
+        }
+      )
+    );
+    prompts.push(
+      prompt(
+        `top rated ${category} near ${location} area`,
+        "top rated {category} near {location} area",
+        "near-location-area",
+        "Near-location area discovery",
+        {
+          intent: "reviews",
+          locationStyle: "near-location-area",
+          specificity: "broad-category",
+          persona: "review-led-consumer",
+          wordingStyle: "search-like",
+          decisionMode: "top-rated"
         }
       )
     );

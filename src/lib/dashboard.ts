@@ -66,7 +66,8 @@ function samplingIntent(prompt: { samplingBasis: unknown; clusterIntent: string 
 }
 
 export async function getBusinessDashboard(businessId: string) {
-  const business = await prisma.business.findUnique({
+  const [business, recentAlerts, allSnapshots] = await Promise.all([
+  prisma.business.findUnique({
     where: { id: businessId },
     include: {
       competitors: {
@@ -96,7 +97,28 @@ export async function getBusinessDashboard(businessId: string) {
         take: 20
       }
     }
-  });
+  }),
+  prisma.telemetryEvent.findMany({
+    where: {
+      eventName: "visibility_alert",
+      payload: { path: ["businessId"], equals: businessId }
+    },
+    orderBy: { createdAt: "desc" },
+    take: 5
+  }),
+  prisma.visibilitySnapshot.findMany({
+    where: { businessId },
+    orderBy: { createdAt: "asc" },
+    select: {
+      provider: true,
+      visibilityScore: true,
+      shareOfVoice: true,
+      recommendationRate: true,
+      reliabilityScore: true,
+      createdAt: true
+    }
+  })
+  ]);
 
   if (!business) {
     return null;
@@ -202,6 +224,24 @@ export async function getBusinessDashboard(businessId: string) {
     );
   });
 
+  const gapReasonFrequency = new Map<string, number>();
+  for (const result of competitorOnlyPrompts) {
+    for (const mentioned of result.mentionedBusinesses) {
+      if (competitorNames.some((c) => normalize(c) === normalize(mentioned.name))) {
+        for (const reason of mentioned.reasons) {
+          const trimmed = reason.trim();
+          if (trimmed) {
+            gapReasonFrequency.set(trimmed, (gapReasonFrequency.get(trimmed) ?? 0) + 1);
+          }
+        }
+      }
+    }
+  }
+  const competitorGapReasons = Array.from(gapReasonFrequency.entries())
+    .map(([reason, count]) => ({ reason, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
+
   const providerBreakdown = Array.from(new Set(latestResults.map((result) => result.provider))).map((provider) => {
     const providerResults = latestResults.filter((result) => result.provider === provider);
     const metricInput = providerResults.map((result) => ({
@@ -290,8 +330,33 @@ export async function getBusinessDashboard(businessId: string) {
     }
   ];
 
+  const snapshotsByProvider = new Map<string, typeof allSnapshots>();
+  for (const snap of allSnapshots) {
+    const list = snapshotsByProvider.get(snap.provider) ?? [];
+    list.push(snap);
+    snapshotsByProvider.set(snap.provider, list);
+  }
+  const snapshotHistory = Array.from(snapshotsByProvider.entries()).map(([provider, snaps]) => {
+    const byDay = new Map<string, (typeof snaps)[number]>();
+    for (const s of snaps) {
+      byDay.set(s.createdAt.toISOString().slice(0, 10), s);
+    }
+    return {
+      provider,
+      label: providerLabel(provider),
+      points: Array.from(byDay.values()).map((s) => ({
+        date: s.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
+        visibilityScore: Math.round(s.visibilityScore),
+        shareOfVoice: Math.round(s.shareOfVoice),
+        recommendationRate: Math.round(s.recommendationRate),
+        reliabilityScore: Math.round(s.reliabilityScore)
+      }))
+    };
+  });
+
   return {
     business,
+    snapshotHistory,
     totals: {
       promptCount: business.prompts.length,
       completedRunCount: latestResults.length,
@@ -311,13 +376,15 @@ export async function getBusinessDashboard(businessId: string) {
       sourceDiversity: primarySnapshot?.sourceDiversity ?? 0,
       reliabilityScore: primarySnapshot?.reliabilityScore ?? 0,
       reliabilityLabel: primarySnapshot?.reliabilityLabel ?? "low",
-      topCompetitorDisplacement: primarySnapshot?.topCompetitorDisplacement ?? null
+      topCompetitorDisplacement: primarySnapshot?.topCompetitorDisplacement ?? null,
+      snapshotCreatedAt: primarySnapshot?.createdAt ?? null
     },
     providerBreakdown,
     topAppearingPrompts: mentionedTarget
       .sort((a, b) => (a.targetRank ?? 99) - (b.targetRank ?? 99))
       .slice(0, 8),
     competitorOnlyPrompts,
+    competitorGapReasons,
     semanticAttributes: Array.from(attributeCounts.values()).sort((a, b) => b.count - a.count),
     referenceSignals: Array.from(referenceSignalCounts.values()).sort((a, b) => b.count - a.count),
     promptProviderComparisons,
@@ -327,6 +394,27 @@ export async function getBusinessDashboard(businessId: string) {
       promptCoverage: promptCoverage.slice(0, 10),
       intentCoverage: intentCoverage.slice(0, 10),
       references: methodologyReferences
+    },
+    monitoring: {
+      enabled: business.monitoringEnabled,
+      intervalDays: business.monitoringIntervalDays,
+      alertEmail: business.alertEmail,
+      lastMonitoredAt: business.lastMonitoredAt,
+      nextRunAt: business.monitoringEnabled && business.lastMonitoredAt
+        ? new Date(business.lastMonitoredAt.getTime() + business.monitoringIntervalDays * 86_400_000)
+        : null,
+      recentAlerts: recentAlerts.map((event) => {
+        const props = event.payload as Record<string, unknown>;
+        return {
+          id: event.id,
+          createdAt: event.createdAt,
+          provider: String(props.provider ?? "chatgpt"),
+          previousScore: Number(props.previousScore ?? 0),
+          newScore: Number(props.newScore ?? 0),
+          delta: Number(props.delta ?? 0),
+          direction: String(props.direction ?? "dropped")
+        };
+      })
     },
     comparison,
     latestResults: latestResults.sort((a, b) => b.runAt.getTime() - a.runAt.getTime()),

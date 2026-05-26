@@ -4,6 +4,8 @@ import type { ObservationProvider } from "./ai/openai-client";
 import type { ExtractionResultPayload } from "./extraction-schema";
 import { calculateGeoMetrics } from "./geo-metrics";
 import { trackEvent } from "./telemetry";
+import { normalizeAttribute } from "./attribute-taxonomy";
+import { sendVisibilityAlert } from "./email";
 import { targetNameMatches } from "./text/jaro-winkler";
 
 function normalizeName(value: string) {
@@ -178,10 +180,12 @@ export async function processPromptRun(
               }))
             },
             semanticAttributes: {
-              create: extraction.semanticAttributes.map((attribute) => ({
-                label: attribute.label,
-                evidence: attribute.evidence
-              }))
+              create: extraction.semanticAttributes
+                .map((attribute) => ({
+                  label: normalizeAttribute(attribute.label, context.category),
+                  evidence: attribute.evidence
+                }))
+                .filter((a): a is { label: string; evidence: string | null } => a.label !== null)
             },
             referenceSignals: {
               create: extraction.referenceSignals.map((signal) => ({
@@ -279,6 +283,11 @@ export async function refreshVisibilitySnapshotForProvider(businessId: string, p
     competitorNames: prompts[0]?.business.competitors.map((competitor) => competitor.name) ?? []
   });
 
+  const previousSnapshot = await prisma.visibilitySnapshot.findFirst({
+    where: { businessId, provider },
+    orderBy: { createdAt: "desc" }
+  });
+
   await prisma.visibilitySnapshot.create({
     data: {
       businessId,
@@ -300,6 +309,40 @@ export async function refreshVisibilitySnapshotForProvider(businessId: string, p
       topCompetitorDisplacement: metrics.topCompetitorDisplacement
     }
   });
+
+  if (previousSnapshot) {
+    const delta = metrics.visibilityRate - previousSnapshot.visibilityScore;
+    if (Math.abs(delta) >= 10) {
+      const direction = delta > 0 ? "improved" : "dropped";
+      await trackEvent("visibility_alert", {
+        businessId,
+        provider,
+        previousScore: previousSnapshot.visibilityScore,
+        newScore: metrics.visibilityRate,
+        delta,
+        direction,
+        topCompetitorDisplacement: metrics.topCompetitorDisplacement
+      });
+
+      const business = await prisma.business.findUnique({
+        where: { id: businessId },
+        select: { name: true, alertEmail: true }
+      });
+      if (business?.alertEmail) {
+        await sendVisibilityAlert({
+          to: business.alertEmail,
+          businessName: business.name,
+          businessId,
+          provider,
+          previousScore: previousSnapshot.visibilityScore,
+          newScore: metrics.visibilityRate,
+          delta,
+          direction,
+          topCompetitor: metrics.topCompetitorDisplacement
+        }).catch((err) => console.error("Failed to send visibility alert email", err));
+      }
+    }
+  }
 }
 
 function initialModelForProvider(provider: ObservationProvider) {
