@@ -1,3 +1,21 @@
+# `docker compose up -d --build` starts the full stack: Postgres, Redis,
+# one-shot migrations, the Next.js app on :3000, and the BullMQ worker.
+# Provider keys (OPENAI_API_KEY, ...) are read from .env if present; the
+# in-network DATABASE_URL/REDIS_URL below override the localhost values there.
+#
+# Dev mode (pnpm dev + pnpm worker on the host) still works with just:
+#   docker compose up -d postgres redis
+
+x-app-base: &app-base
+  build: .
+  image: opengeo:local
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    DATABASE_URL: postgresql://local_ai:local_ai@postgres:5432/local_ai_visibility?schema=public
+    REDIS_URL: redis://redis:6379
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -28,6 +46,36 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  migrate:
+    <<: *app-base
+    command: ["npx", "prisma", "migrate", "deploy"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  app:
+    <<: *app-base
+    command: ["pnpm", "start"]
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  worker:
+    <<: *app-base
+    command: ["pnpm", "worker"]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
 volumes:
   postgres_data:

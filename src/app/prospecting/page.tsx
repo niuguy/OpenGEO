@@ -3,6 +3,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui-extras";
 
+export const dynamic = "force-dynamic";
+
 function normalizeUrl(value: string | null | undefined) {
   if (!value) {
     return null;

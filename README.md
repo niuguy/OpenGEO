@@ -1,20 +1,20 @@
 # OpenGEO
 
-OpenGEO is an open-source AI search visibility tracker for local businesses, agencies, and operators who want to understand how brands appear in ChatGPT, Gemini, and Google AI Overview-style answers.
+OpenGEO is an open-source GEO evaluation framework for measuring how AI systems discover, describe, compare, and recommend brands — with local business as the first mature profile type.
 
 It answers a practical question:
 
-> When someone asks an AI assistant for local recommendations, does this business appear, who appears instead, why, and which reference signals are mentioned?
+> When someone asks an AI assistant for recommendations, does this brand appear, who appears instead, why, and which reference signals are mentioned?
 
 OpenGEO is observation-first. It measures AI answer behavior and competitive visibility; it does not promise guaranteed ranking improvements.
 
 ## What It Does
 
-- Generate diversified local-intent prompts for a business, category, and location.
+- Generate diversified prompts from selectable prompt packs: `local-business` (category + location intent) and `brand-reputation` (awareness, sentiment, trust, and comparison prompts for any brand, product, or organization).
 - Run prompt samples against ChatGPT-style OpenAI models, Gemini, and optional Google AI Overview-compatible search data.
 - Extract mentioned businesses, observed ranks, sentiment, reasons, semantic attributes, and model-mentioned reference signals.
 - Track visibility snapshots over time.
-- Compare target businesses against local competitors.
+- Compare targets against competitors and other compared entities.
 - Crawl public websites for a small local business audit.
 - Discover local prospects through the official Google Places API.
 - Export customer-facing reports.
@@ -47,21 +47,17 @@ Traditional SEO tools measure search rankings, backlinks, and keyword demand. Op
 See [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) for the full local setup.
 
 ```bash
-pnpm install
-cp .env.example .env
-docker compose up -d
-pnpm prisma:migrate
-pnpm prisma:seed
-pnpm dev
+cp .env.example .env   # add OPENAI_API_KEY at minimum
+docker compose up -d --build
+docker compose run --rm app pnpm prisma:seed   # optional demo data
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000. The stack includes Postgres, Redis, database
+migrations, the web app, and the background worker for queued prompt checks —
+no extra terminals needed.
 
-Start the background worker in a second terminal when you want queued prompt checks:
-
-```bash
-pnpm worker
-```
+For dev mode with hot reload (`pnpm dev` + `pnpm worker` on the host), start
+only the data services: `docker compose up -d postgres redis`.
 
 ## Required API Keys
 
@@ -110,7 +106,7 @@ GOOGLE_PLACES_LANGUAGE_CODE="en"
 
 ### Audit Machine
 
-Open `/audit-machine` to turn a public website URL into a repeatable audit workflow:
+Open `/` (the home page) to turn a public website URL into a repeatable audit workflow:
 
 1. Crawl a small same-origin page set.
 2. Infer business name, category, location, and attributes.
