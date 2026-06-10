@@ -13,10 +13,6 @@
     "worker": "tsx src/worker.ts",
     "demo:small": "tsx scripts/run-small-demo.ts",
     "demo:refresh": "tsx scripts/refresh-demo-snapshot.ts",
-    "demo:export": "tsx scripts/export-cloudflare-demo.ts",
-    "cloudflare:next-export": "tsx scripts/build-static-export.ts",
-    "cloudflare:export": "rm -rf out && pnpm cloudflare:next-export && CLOUDFLARE_EXPORT_DIR=out CLOUDFLARE_EXPORT_INCLUDE_LANDING=false tsx scripts/export-cloudflare-demo.ts",
-    "cloudflare:deploy": "pnpm cloudflare:export && env -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u http_proxy -u https_proxy -u all_proxy wrangler pages deploy out --project-name opengeo-demo --branch main",
     "outreach:crawl": "tsx scripts/crawl-outreach-leads.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -43,7 +39,6 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@cloudflare/workerd-darwin-arm64": "^1.20260511.1",
     "@types/node": "^22.10.7",
     "@types/nodemailer": "^8.0.0",
     "@types/react": "^19.0.7",
@@ -56,8 +51,7 @@
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
-    "vitest": "^2.1.8",
-    "wrangler": "^4.90.0"
+    "vitest": "^2.1.8"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

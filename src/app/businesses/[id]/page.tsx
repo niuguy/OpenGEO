@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardActions } from "@/components/dashboard-actions";
 import { getBusinessDashboard } from "@/lib/dashboard";
-import { prisma } from "@/lib/prisma";
 import { ProgressBar, InfoIcon, Badge } from "@/components/ui-extras";
 import { WhitelabelForm } from "@/components/whitelabel-form";
 import { SnapshotChart } from "@/components/snapshot-chart";
@@ -16,18 +15,6 @@ type Props = {
 
 function formatRank(rank: number | null) {
   return rank ? rank.toFixed(1) : "n/a";
-}
-
-export async function generateStaticParams() {
-  if (process.env.STATIC_EXPORT !== "true") {
-    return [];
-  }
-
-  const businesses = await prisma.business.findMany({
-    select: { id: true }
-  });
-
-  return businesses.map((business) => ({ id: business.id }));
 }
 
 export default async function BusinessDashboardPage({ params, searchParams }: Props) {

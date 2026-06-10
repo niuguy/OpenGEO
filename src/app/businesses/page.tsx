@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export default async function BusinessesPage() {
   const businesses = await prisma.business.findMany({
     orderBy: { createdAt: "desc" },
@@ -18,13 +20,13 @@ export default async function BusinessesPage() {
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-semibold text-ink">Audits</h1>
+          <h1 className="text-3xl font-semibold text-ink">Reports</h1>
           <p className="mt-2 text-sm text-muted">
-            Local businesses configured for AI visibility observation.
+            Targets configured for AI visibility observation.
           </p>
         </div>
         <Link
-          href="/#inquiry"
+          href="/"
           className="focus-ring rounded-md bg-accent px-4 py-2 text-sm font-medium text-white"
         >
           New audit

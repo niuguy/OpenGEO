@@ -4,7 +4,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "OpenGEO",
-  description: "Open-source AI search visibility tracking for local businesses.",
+  description:
+    "Open-source GEO evaluation: measure how AI systems discover, describe, compare, and recommend brands.",
 };
 
 export default function RootLayout({
@@ -21,15 +22,20 @@ export default function RootLayout({
               OpenGEO
             </Link>
             <nav className="flex items-center gap-4 text-sm text-muted">
-              <Link href="/audit-machine" className="hover:text-ink">
-                Audit Tool
+              <Link href="/" className="hover:text-ink">
+                Audit
               </Link>
               <Link href="/businesses" className="hover:text-ink">
-                My Reports
+                Reports
               </Link>
-              <Link href="/#inquiry" className="hover:text-ink">
-                New Analysis
-              </Link>
+              <a
+                href="https://github.com/niuguy/OpenGEO"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-ink"
+              >
+                GitHub
+              </a>
             </nav>
           </div>
         </header>

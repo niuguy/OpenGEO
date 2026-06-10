@@ -6,18 +6,6 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
-export async function generateStaticParams() {
-  if (process.env.STATIC_EXPORT !== "true") {
-    return [];
-  }
-
-  const businesses = await prisma.business.findMany({
-    select: { id: true }
-  });
-
-  return businesses.map((business) => ({ id: business.id }));
-}
-
 export default async function RunsPage({ params }: Props) {
   const { id } = await params;
   const business = await prisma.business.findUnique({
