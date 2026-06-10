@@ -101,6 +101,7 @@ describe("persistGeneratedPrompts", () => {
         template: "best-local",
         clusterId: "c1",
         clusterIntent: "best",
+        packId: "local-business",
         samplingBasis: { intent: "best", locationStyle: "city", specificity: "category", persona: "any", wordingStyle: "natural", decisionMode: "open" }
       }
     ]);
@@ -108,7 +109,11 @@ describe("persistGeneratedPrompts", () => {
     expect(prisma.prompt.upsert).toHaveBeenCalledTimes(1);
     expect(prisma.prompt.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({ source: "generated", status: "DRAFT" })
+        create: expect.objectContaining({
+          source: "generated",
+          status: "DRAFT",
+          samplingBasis: expect.objectContaining({ packId: "local-business" })
+        })
       })
     );
     // Archive scope MUST include source: "generated" so user-added prompts survive.

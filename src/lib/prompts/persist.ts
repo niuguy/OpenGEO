@@ -19,13 +19,16 @@ export async function persistGeneratedPrompts(
   const status = options.status ?? "DRAFT";
 
   for (const prompt of generated) {
+    // packId rides inside the samplingBasis JSON until the Prompt table grows
+    // a real column (plan Phase 5); avoids a migration in the adapter phase.
+    const samplingBasis = { packId: prompt.packId, ...prompt.samplingBasis };
     await prisma.prompt.upsert({
       where: { businessId_text: { businessId, text: prompt.text } },
       update: {
         template: prompt.template,
         clusterId: prompt.clusterId,
         clusterIntent: prompt.clusterIntent,
-        samplingBasis: prompt.samplingBasis
+        samplingBasis
       },
       create: {
         businessId,
@@ -33,7 +36,7 @@ export async function persistGeneratedPrompts(
         template: prompt.template,
         clusterId: prompt.clusterId,
         clusterIntent: prompt.clusterIntent,
-        samplingBasis: prompt.samplingBasis,
+        samplingBasis,
         status,
         source: "generated"
       }

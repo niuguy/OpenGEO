@@ -1,7 +1,43 @@
 import { PrismaClient } from "@prisma/client";
-import { generatePromptsForBusiness } from "../src/lib/prompts";
+import { generatePromptsForBusiness, type GeneratedPrompt } from "../src/lib/prompts";
+import { brandReputationPack } from "../src/lib/prompts/packs/brand-reputation";
 
 const prisma = new PrismaClient();
+
+async function upsertActivePrompts(businessId: string, prompts: GeneratedPrompt[]) {
+  for (const prompt of prompts) {
+    const samplingBasis = { packId: prompt.packId, ...prompt.samplingBasis };
+    await prisma.prompt.upsert({
+      where: { businessId_text: { businessId, text: prompt.text } },
+      update: {
+        template: prompt.template,
+        clusterId: prompt.clusterId,
+        clusterIntent: prompt.clusterIntent,
+        samplingBasis,
+        status: "ACTIVE"
+      },
+      create: {
+        businessId,
+        text: prompt.text,
+        template: prompt.template,
+        clusterId: prompt.clusterId,
+        clusterIntent: prompt.clusterIntent,
+        samplingBasis,
+        status: "ACTIVE"
+      }
+    });
+  }
+
+  await prisma.prompt.updateMany({
+    where: {
+      businessId,
+      text: { notIn: prompts.map((prompt) => prompt.text) },
+      status: "ACTIVE",
+      source: "generated"
+    },
+    data: { status: "ARCHIVED" }
+  });
+}
 
 async function main() {
   const business = await prisma.business.upsert({
@@ -68,46 +104,7 @@ async function main() {
     attributes: business.targetAttributes
   });
 
-  for (const prompt of prompts) {
-    await prisma.prompt.upsert({
-      where: {
-        businessId_text: {
-          businessId: business.id,
-          text: prompt.text
-        }
-      },
-      update: {
-        template: prompt.template,
-        clusterId: prompt.clusterId,
-        clusterIntent: prompt.clusterIntent,
-        samplingBasis: prompt.samplingBasis,
-        status: "ACTIVE"
-      },
-      create: {
-        businessId: business.id,
-        text: prompt.text,
-        template: prompt.template,
-        clusterId: prompt.clusterId,
-        clusterIntent: prompt.clusterIntent,
-        samplingBasis: prompt.samplingBasis,
-        status: "ACTIVE"
-      }
-    });
-  }
-
-  await prisma.prompt.updateMany({
-    where: {
-      businessId: business.id,
-      text: {
-        notIn: prompts.map((prompt) => prompt.text)
-      },
-      status: "ACTIVE",
-      source: "generated"
-    },
-    data: {
-      status: "ARCHIVED"
-    }
-  });
+  await upsertActivePrompts(business.id, prompts);
 
   console.log(`Seeded ${business.name} with ${competitors.length} competitors and ${prompts.length} prompts.`);
 
@@ -168,20 +165,54 @@ async function main() {
     attributes: accountant.targetAttributes
   });
 
-  for (const p of accountantPrompts) {
-    await prisma.prompt.upsert({
-      where: { businessId_text: { businessId: accountant.id, text: p.text } },
-      update: { template: p.template, clusterId: p.clusterId, clusterIntent: p.clusterIntent, samplingBasis: p.samplingBasis, status: "ACTIVE" },
-      create: { businessId: accountant.id, text: p.text, template: p.template, clusterId: p.clusterId, clusterIntent: p.clusterIntent, samplingBasis: p.samplingBasis, status: "ACTIVE" }
+  await upsertActivePrompts(accountant.id, accountantPrompts);
+
+  console.log(`Seeded ${accountant.name} with ${accountantCompetitors.length} competitors and ${accountantPrompts.length} prompts.`);
+
+  // Third demo: a non-local SaaS target through the brand-reputation pack.
+  // It still lives in the Business table (Phase 1 keeps the schema); category
+  // doubles as marketCategory and location as geography per the plan mapping.
+  const saas = await prisma.business.upsert({
+    where: { id: "demo-saas-helpdesk" },
+    update: {
+      name: "Example Helpdesk",
+      category: "customer support software",
+      location: "Global",
+      websiteUrl: "https://example.com",
+      targetAttributes: ["AI automation", "enterprise support"]
+    },
+    create: {
+      id: "demo-saas-helpdesk",
+      name: "Example Helpdesk",
+      category: "customer support software",
+      location: "Global",
+      websiteUrl: "https://example.com",
+      targetAttributes: ["AI automation", "enterprise support"]
+    }
+  });
+
+  const saasCompetitors = ["Intercom", "Zendesk", "Freshdesk"];
+
+  for (const name of saasCompetitors) {
+    await prisma.competitor.upsert({
+      where: { businessId_name: { businessId: saas.id, name } },
+      update: {},
+      create: { businessId: saas.id, name }
     });
   }
 
-  await prisma.prompt.updateMany({
-    where: { businessId: accountant.id, text: { notIn: accountantPrompts.map((p) => p.text) }, status: "ACTIVE", source: "generated" },
-    data: { status: "ARCHIVED" }
+  const saasPrompts = brandReputationPack.generate({
+    targetName: saas.name,
+    targetKind: "saas",
+    marketCategory: saas.category,
+    audience: "B2B SaaS teams",
+    attributes: saas.targetAttributes,
+    comparedEntities: saasCompetitors
   });
 
-  console.log(`Seeded ${accountant.name} with ${accountantCompetitors.length} competitors and ${accountantPrompts.length} prompts.`);
+  await upsertActivePrompts(saas.id, saasPrompts);
+
+  console.log(`Seeded ${saas.name} (SaaS, brand-reputation pack) with ${saasCompetitors.length} compared entities and ${saasPrompts.length} prompts.`);
 }
 
 main()
