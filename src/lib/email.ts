@@ -50,7 +50,7 @@ export async function sendVisibilityAlert(opts: VisibilityAlertOptions): Promise
 <body style="font-family:system-ui,sans-serif;background:#f8fafc;margin:0;padding:24px">
   <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:8px;border:1px solid #e2e8f0;overflow:hidden">
     <div style="background:${isDropped ? "#7f1d1d" : "#14532d"};padding:20px 24px">
-      <p style="margin:0;font-size:11px;color:${isDropped ? "#fca5a5" : "#86efac"};letter-spacing:1px;text-transform:uppercase">AI Visibility Alert · nearbyAI</p>
+      <p style="margin:0;font-size:11px;color:${isDropped ? "#fca5a5" : "#86efac"};letter-spacing:1px;text-transform:uppercase">AI Visibility Alert · OpenGEO</p>
       <h1 style="margin:6px 0 0;font-size:20px;color:#fff">${opts.businessName}</h1>
     </div>
     <div style="padding:24px">

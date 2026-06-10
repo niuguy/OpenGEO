@@ -2,8 +2,13 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { rename } from "node:fs/promises";
 
-const apiDir = "src/app/api";
-const hiddenApiDir = "src/api.__static_export_disabled";
+const hiddenRoutes = [
+  ["src/app/api", "src/api.__static_export_disabled"],
+  ["src/app/audit-machine", "src/audit-machine.__static_export_disabled"],
+  ["src/app/backoffice", "src/backoffice.__static_export_disabled"],
+  ["src/app/businesses", "src/businesses.__static_export_disabled"],
+  ["src/app/prospecting", "src/prospecting.__static_export_disabled"]
+] as const;
 
 async function run(command: string, args: string[]) {
   const child = spawn(command, args, {
@@ -25,21 +30,28 @@ async function run(command: string, args: string[]) {
 }
 
 async function main() {
-  if (existsSync(hiddenApiDir)) {
-    throw new Error(`${hiddenApiDir} already exists. Restore or remove it before running the static export.`);
+  for (const [, hiddenDir] of hiddenRoutes) {
+    if (existsSync(hiddenDir)) {
+      throw new Error(`${hiddenDir} already exists. Restore or remove it before running the static export.`);
+    }
   }
 
-  let apiHidden = false;
+  const movedRoutes: typeof hiddenRoutes[number][] = [];
   try {
-    if (existsSync(apiDir)) {
-      await rename(apiDir, hiddenApiDir);
-      apiHidden = true;
+    for (const route of hiddenRoutes) {
+      const [sourceDir, hiddenDir] = route;
+      if (existsSync(sourceDir)) {
+        await rename(sourceDir, hiddenDir);
+        movedRoutes.push(route);
+      }
     }
 
     await run("pnpm", ["build"]);
   } finally {
-    if (apiHidden && existsSync(hiddenApiDir)) {
-      await rename(hiddenApiDir, apiDir);
+    for (const [sourceDir, hiddenDir] of movedRoutes.reverse()) {
+      if (existsSync(hiddenDir)) {
+        await rename(hiddenDir, sourceDir);
+      }
     }
   }
 }

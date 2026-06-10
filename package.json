@@ -1,5 +1,5 @@
 {
-  "name": "local-ai-visibility-tracker",
+  "name": "opengeo",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@9.15.4",
@@ -16,7 +16,7 @@
     "demo:export": "tsx scripts/export-cloudflare-demo.ts",
     "cloudflare:next-export": "tsx scripts/build-static-export.ts",
     "cloudflare:export": "rm -rf out && pnpm cloudflare:next-export && CLOUDFLARE_EXPORT_DIR=out CLOUDFLARE_EXPORT_INCLUDE_LANDING=false tsx scripts/export-cloudflare-demo.ts",
-    "cloudflare:deploy": "pnpm cloudflare:export && env -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u http_proxy -u https_proxy -u all_proxy wrangler pages deploy out --project-name nearbyai-demo --branch main",
+    "cloudflare:deploy": "pnpm cloudflare:export && env -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u http_proxy -u https_proxy -u all_proxy wrangler pages deploy out --project-name opengeo-demo --branch main",
     "outreach:crawl": "tsx scripts/crawl-outreach-leads.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -37,7 +37,6 @@
     "next": "^15.1.6",
     "nodemailer": "^8.0.7",
     "openai": "^4.77.0",
-    "proxy-agent": "^8.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "undici": "^8.3.0",

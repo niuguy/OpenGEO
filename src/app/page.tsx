@@ -17,15 +17,15 @@ export default async function HomePage() {
       <section className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
         <div>
           <Badge variant="accent" className="mb-4 uppercase tracking-wider">
-            AI Search Visibility & Readiness Audit
+            Open-Source GEO Visibility
           </Badge>
           <h1 className="max-w-3xl text-4xl font-semibold leading-tight text-ink sm:text-6xl">
-            See how your business appears in AI search results.
+            See how your business appears in AI answers.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-muted">
-            Audit your AI search readiness against Google, OpenAI, and
-            Schema.org standards — and verify how ChatGPT actually answers about
-            you, with reproducible, source-cited results.
+            OpenGEO observes how ChatGPT, Gemini, and Google AI Overview-style
+            results recommend local businesses, mention competitors, and cite
+            reference signals.
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
             <Link
@@ -84,11 +84,11 @@ export default async function HomePage() {
         <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
           <div>
             <h2 className="text-3xl font-semibold sm:text-4xl">
-              Strategic intelligence for the AI era.
+              Generative search intelligence for local teams.
             </h2>
             <p className="mt-6 text-lg text-white/70">
-              Stop guessing how AI models perceive your brand. Get structured
-              evidence, raw answers, and competitive benchmarks.
+              Stop guessing how AI assistants describe your market. Get
+              structured evidence, raw answers, and competitive benchmarks.
             </p>
             <div className="mt-10 space-y-6">
               <div className="flex gap-4">
@@ -175,19 +175,10 @@ export default async function HomePage() {
         <div>
           <h2 className="text-3xl font-semibold text-ink">Get Started</h2>
           <p className="mt-4 text-lg text-muted">
-            Ready to scale your AI search monitoring? We offer managed setup,
-            white-label reports, and industry-specific benchmarking for
-            high-growth brands and agencies.
+            Want help turning OpenGEO into a managed workflow? We offer setup,
+            white-label reports, and industry-specific benchmarking for local
+            businesses and agencies.
           </p>
-          <div className="mt-8 rounded-xl border border-line bg-panel p-6">
-            <p className="text-sm font-medium text-ink italic">
-              &ldquo;The transparency provided by the raw source data has been a
-              game-changer for our agency&rsquo;s client reporting.&rdquo;
-            </p>
-            <p className="mt-3 text-xs font-bold text-muted uppercase tracking-widest">
-              — Senior SEO Lead
-            </p>
-          </div>
           {process.env.NEXT_PUBLIC_CONTACT_EMAIL && (
             <p className="mt-8 text-sm text-muted">
               Contact us:{" "}

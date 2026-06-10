@@ -1,10 +1,34 @@
-# Local AI Visibility Tracker
+# OpenGEO
 
-Open-source AI visibility observation for local SEO agencies.
+OpenGEO is an open-source AI search visibility tracker for local businesses, agencies, and operators who want to understand how brands appear in ChatGPT, Gemini, and Google AI Overview-style answers.
 
-The MVP answers: do ChatGPT, Gemini, or Google AI Overviews recommend a local business, for which prompts, against which competitors, why, and which reference signals are mentioned?
+It answers a practical question:
 
-This is observation-first. It does not claim guaranteed ranking improvements.
+> When someone asks an AI assistant for local recommendations, does this business appear, who appears instead, why, and which reference signals are mentioned?
+
+OpenGEO is observation-first. It measures AI answer behavior and competitive visibility; it does not promise guaranteed ranking improvements.
+
+## What It Does
+
+- Generate diversified local-intent prompts for a business, category, and location.
+- Run prompt samples against ChatGPT-style OpenAI models, Gemini, and optional Google AI Overview-compatible search data.
+- Extract mentioned businesses, observed ranks, sentiment, reasons, semantic attributes, and model-mentioned reference signals.
+- Track visibility snapshots over time.
+- Compare target businesses against local competitors.
+- Crawl public websites for a small local business audit.
+- Discover local prospects through the official Google Places API.
+- Export customer-facing reports.
+
+## OpenGEO vs SEO Suites
+
+Traditional SEO tools measure search rankings, backlinks, and keyword demand. OpenGEO focuses on generative engine observation:
+
+- AI recommendation frequency
+- AI answer share of voice
+- competitor displacement
+- prompt cluster visibility
+- reference signals that models mention
+- answer variance across samples and providers
 
 ## Stack
 
@@ -12,42 +36,43 @@ This is observation-first. It does not claim guaranteed ranking improvements.
 - Tailwind CSS
 - Postgres via Prisma
 - Redis + BullMQ for queued background runs
-- OpenAI API for answers and structured extraction
+- OpenAI API for answer sampling and structured extraction
 - Google Gemini API for Gemini answer sampling
-- Optional Google AI Overview connector for search-result AI Overviews
-- Vitest for focused unit tests
+- Optional SearchAPI-compatible connector for Google AI Overview-style results
+- Optional Google Places API for prospect discovery
+- Vitest for focused tests
 
-## Local Setup
+## Quickstart
 
-1. Install dependencies:
+See [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) for the full local setup.
 
 ```bash
 pnpm install
+cp .env.example .env
+docker compose up -d
+pnpm prisma:migrate
+pnpm prisma:seed
+pnpm dev
 ```
 
-2. Copy environment variables:
+Open http://localhost:3000.
+
+Start the background worker in a second terminal when you want queued prompt checks:
 
 ```bash
-cp .env.example .env
+pnpm worker
 ```
 
-3. Add your OpenAI key to `.env` if you want queued worker runs:
+## Required API Keys
+
+For basic ChatGPT-style runs:
 
 ```bash
 OPENAI_API_KEY="sk-..."
-```
-
-Direct dashboard runs can also use a request-only key entered in the UI. That key is used for the request and is not stored.
-
-The observation call intentionally sends only the user-like prompt to OpenAI. Business name, known competitors, and target attributes are used after the response for structured extraction and analysis, not as hidden context for the answer-generation call.
-
-By default the app samples ChatGPT-style OpenAI answers only:
-
-```bash
 OBSERVATION_PROVIDERS="chatgpt"
 ```
 
-To sample Gemini alongside ChatGPT, add a Google AI Studio key and include both providers:
+To sample Gemini too:
 
 ```bash
 GEMINI_API_KEY="..."
@@ -55,7 +80,7 @@ GEMINI_MODEL="gemini-2.5-flash"
 OBSERVATION_PROVIDERS="chatgpt,gemini"
 ```
 
-Google AI Overviews do not have an official public Google API. The app supports them as an optional search-result connector, currently using a SearchAPI-compatible response shape:
+For optional Google AI Overview-style observation:
 
 ```bash
 SEARCHAPI_API_KEY="..."
@@ -65,88 +90,37 @@ GOOGLE_AIO_HL="en"
 OBSERVATION_PROVIDERS="chatgpt,gemini,google_ai_overview"
 ```
 
-Langfuse remains optional internal tracing. It is disabled by default and is not required for prompt sampling or product metrics:
+For optional local prospect discovery:
 
 ```bash
-LANGFUSE_ENABLED="false"
-LANGFUSE_PUBLIC_KEY=""
-LANGFUSE_SECRET_KEY=""
-LANGFUSE_BASE_URL="https://cloud.langfuse.com"
+GOOGLE_PLACES_API_KEY="..."
+GOOGLE_PLACES_REGION_CODE="GB"
+GOOGLE_PLACES_LANGUAGE_CODE="en"
 ```
 
-To enable internal AI tracing, create Langfuse project credentials and set:
+## Main Workflows
 
-```bash
-LANGFUSE_ENABLED="true"
-LANGFUSE_PUBLIC_KEY="pk-lf-..."
-LANGFUSE_SECRET_KEY="sk-lf-..."
-LANGFUSE_BASE_URL="https://cloud.langfuse.com"
-```
-
-When enabled, Langfuse records AI interactions for observability. The application database stores local business entities, prompt clusters, sampled answers, extracted recommendation data, and customer-facing visibility metrics.
-
-4. Start Postgres and Redis:
-
-```bash
-docker compose up -d
-```
-
-5. Run Prisma migration and seed:
-
-```bash
-pnpm prisma:migrate
-pnpm prisma:seed
-```
-
-6. Start the app:
-
-```bash
-pnpm dev
-```
-
-Open http://localhost:3000.
-
-7. Optional: start the worker for queued prompt checks:
-
-```bash
-pnpm worker
-```
-
-8. Optional: increase repeated sampling per prompt:
-
-```bash
-PROMPT_SAMPLES_PER_RUN="3"
-```
-
-## MVP Flow
+### AI Visibility Audit
 
 1. Open `/businesses/new`.
 2. Create a local business audit.
 3. Generate prompts from the dashboard.
-4. Run checks:
-   - Direct run: paste your OpenAI API key in the dashboard.
-   - Queued run: set `OPENAI_API_KEY` in `.env` and run `pnpm worker`.
-5. Review provider comparison, visibility score, average observed position, recommendation consistency, competitor comparison, semantic attributes, model-mentioned reference signals, volatility, source mentions, and raw answers.
+4. Run provider samples.
+5. Review visibility score, observed position, recommendation consistency, competitor comparison, semantic attributes, reference signals, volatility, and raw answers.
 
-## Audit Machine
+### Audit Machine
 
-Open `/audit-machine` to turn the app into a repeatable audit workflow.
+Open `/audit-machine` to turn a public website URL into a repeatable audit workflow:
 
-Website audit:
+1. Crawl a small same-origin page set.
+2. Infer business name, category, location, and attributes.
+3. Create the business audit.
+4. Generate a diversified prompt set.
+5. Run provider samples.
 
-1. Enter a public website URL.
-2. The app crawls a small same-origin page set, extracts page titles, headings, body text, and schema types.
-3. It infers a business name, category, location, and target attributes.
-4. It creates a business audit and generates the diversified prompt set.
-5. Run provider samples from the audit dashboard.
+### Prospect Discovery
 
-Prospect discovery:
-
-1. Enter a category and location.
-2. The app uses Google Places API to find local prospects and stores them in `LeadProspect`.
-3. Use each prospect website as a starting point for an audit and pitch.
-
-Outreach contact crawl:
+Open `/prospecting` or run the outreach crawler to discover local business prospects through Google Places and crawl public contact data.
 
 ```bash
 OUTREACH_CATEGORY="dentist" \
@@ -156,67 +130,56 @@ OUTREACH_MAX_PAGES=8 \
 pnpm outreach:crawl
 ```
 
-This discovers prospects through Google Places, crawls each public business website, and stores reviewable outreach data in `OutreachCrawl`: public emails, phone hints, likely contact pages, and form metadata. It does not submit forms automatically. Treat form submission as a separate reviewed outreach step so the app does not send messages without explicit approval.
-
-The app does not directly scrape Google Maps pages. Use the official Places API path:
-
-```bash
-GOOGLE_PLACES_API_KEY="..."
-GOOGLE_PLACES_REGION_CODE="GB"
-GOOGLE_PLACES_LANGUAGE_CODE="en"
-```
-
-The customer-facing dashboard does not expose Langfuse. Internal raw-run debug details may include Langfuse trace IDs and trace links for maintainers.
+OpenGEO does not scrape Google Maps pages and does not submit forms automatically.
 
 ## Sampling Methodology
 
-This project observes AI answer behavior; it does not grade whether ChatGPT, Gemini, or Google AI Overviews gave the objectively best local answer.
-
-Prompt coverage is handled through stratified sampling rather than pure random generation. Prompts are grouped by cluster and tagged with sampling metadata such as intent, location style, specificity, persona, wording style, and decision mode. Repeated samples per prompt capture answer variance, then the app reports recommendation frequency and consistency.
-
-Each generated prompt also asks the model to briefly explain why it recommends those businesses and to mention reference signals it used, such as Google Maps reviews, Trustpilot, clinic websites, NHS or private listings, local directories, opening hours, and service pages. The app treats these as model-mentioned signals, not independently verified citations unless the answer includes a concrete URL.
-
-The API flow is:
+OpenGEO sends a user-like prompt to the answer provider first. It does not leak the target business, competitors, or attributes into the answer-generation call.
 
 ```text
-user-like prompt -> OpenAI API -> raw answer
-raw answer + known business context -> structured extraction -> app metrics
+user-like prompt -> answer provider -> raw answer
+raw answer + known business context -> structured extraction -> OpenGEO metrics
 ```
 
-This emulates a consumer local-intent question without leaking target business or competitor hints into the answer-generation request. Gemini and Google AI Overview runs use the same prompt set so provider-level differences are comparable.
+Prompt coverage uses stratified sampling instead of pure random prompt generation. Prompts are grouped by cluster and tagged with metadata such as intent, location style, specificity, persona, wording style, and decision mode.
 
-## Architecture Boundary
+Repeated samples capture answer variance. OpenGEO reports recommendation frequency, observed rank, consistency, share of voice, semantic attributes, competitor displacement, and source/reference signal mentions.
 
-Langfuse is optional internal observability only. It can capture raw prompts, raw model responses, model names, latency, token usage when available, and errors for prompt generation and structured extraction calls.
+## Self-Hosting
 
-The product remains the local AI recommendation intelligence layer. Our Postgres database owns:
+Supported first-class path:
 
-- business and competitor entities
-- prompt clusters and diversified prompt variants
-- repeated prompt samples
-- answer provider for each sample
-- validated structured extraction results
-- model-mentioned reference signals and source mentions
-- visibility rate
-- average observed position
-- competitor share of recommendations
-- recommendation consistency
-- semantic attribute frequency
-- volatility score
-- source mentions
-- visibility snapshots and customer-facing reports
+- Docker Compose for Postgres + Redis + local Next.js runtime.
 
-Do not use Langfuse as the only store for customer-facing business metrics.
+Useful deployment path:
 
-## Seed Demo
+- Vercel for the dynamic Next.js app with hosted Postgres, plus a separate worker host for `pnpm worker`.
 
-The seed creates a Woking / Surrey dentist demo:
+See:
 
-- Example Dental Clinic
-- Bupa Dental Care Woking
-- Portmore Dental
-- Woking Dental Practice
-- The Dental Practice Woking
+- [docs/SELF_HOSTING_DOCKER.md](docs/SELF_HOSTING_DOCKER.md)
+- [docs/DEPLOY_VERCEL.md](docs/DEPLOY_VERCEL.md)
+
+## Agent Skills
+
+OpenGEO ships initial agent skill definitions in `.agents/skills`. They are intended for Codex, Claude Code, and other skill-aware coding agents.
+
+Planned skill workflows:
+
+- `geo-project-setup`
+- `ai-visibility-audit`
+- `competitor-geo-analysis`
+- `local-business-prompt-research`
+- `geo-report-review`
+- `lead-prospecting`
+
+## MCP Direction
+
+The next major platform step is an OpenGEO MCP server so agents can inspect projects, run prompt checks, read visibility reports, compare competitors, and prepare client-facing GEO recommendations directly from a self-hosted OpenGEO instance.
+
+## Demo Data
+
+Seed data is for local development only. Any fictional/demo business should be treated as placeholder data and not used as a real testimonial or customer claim.
 
 ## Telemetry
 
@@ -226,23 +189,13 @@ Telemetry is local by default. Events are stored in the `TelemetryEvent` table a
 /api/telemetry
 ```
 
-Set this to disable local telemetry recording:
+Disable local telemetry recording with:
 
 ```bash
 TELEMETRY_ENABLED="false"
 ```
 
-The app records product usage metrics such as business creation, prompt generation, prompt run completion/failure, and inquiry creation. It does not store request-supplied OpenAI API keys.
-
-## Agency Inquiries
-
-The landing page includes a contact form for managed setup, white-label reports, vertical prompt packs, or benchmark access. Inquiries are stored locally in the `AgencyInquiry` table.
-
-Set the displayed contact email:
-
-```bash
-NEXT_PUBLIC_CONTACT_EMAIL="you@example.com"
-```
+OpenGEO does not store request-supplied OpenAI API keys.
 
 ## Tests
 
@@ -257,13 +210,15 @@ Current tests cover prompt generation, structured extraction schema validation, 
 Open-source:
 
 - prompt generation
-- answer runs
+- provider answer runs
 - structured extraction
-- scoring
+- GEO scoring
 - local dashboard
-- seed demo
+- local reports
+- seed/demo data
+- agent skills
 
-Paid or managed later:
+Managed or paid later:
 
 - hosted monitoring
 - agency/client workspaces
@@ -271,3 +226,4 @@ Paid or managed later:
 - vertical prompt packs
 - competitor benchmarks
 - scheduled alerts
+- hosted MCP

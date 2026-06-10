@@ -1,6 +1,5 @@
 import { observeOpenAI } from "@langfuse/openai";
 import OpenAI from "openai";
-import { ProxyAgent } from "proxy-agent";
 import { extractionJsonSchema, extractionResultSchema } from "@/lib/extraction-schema";
 import {
   createTraceHandle,
@@ -55,8 +54,9 @@ export type AnswerResult = {
   model: string;
   rawAnswer: string;
   // Determinism provenance. Null when the provider doesn't expose them
-  // (Google AI Overview has no temp/seed/fingerprint at all; Gemini honors
-  // seed best-effort but does not return a fingerprint).
+  // (Google AI Overview has no temp/seed/fingerprint at all; Gemini records
+  // our deterministic seed locally but the OpenAI-compatible endpoint does
+  // not accept seed or return a fingerprint).
   temperature: number | null;
   seed: bigint | null;
   systemFingerprint: string | null;
@@ -97,18 +97,6 @@ type ObservedClientOptions = {
 export const CHATGPT_LIKE_SYSTEM_PROMPT =
   "You answer as a helpful consumer assistant. Give practical local recommendations from general knowledge, say when you are uncertain, and do not invent citations or exact rankings.";
 
-function getProxyAgent() {
-  const hasProxy =
-    process.env.HTTPS_PROXY ||
-    process.env.https_proxy ||
-    process.env.HTTP_PROXY ||
-    process.env.http_proxy ||
-    process.env.ALL_PROXY ||
-    process.env.all_proxy;
-
-  return hasProxy ? new ProxyAgent() : undefined;
-}
-
 function getOpenAIClient(auth: OpenAIAuth = {}, options?: ObservedClientOptions) {
   const apiKey = auth.apiKey || process.env.OPENAI_API_KEY;
 
@@ -119,8 +107,7 @@ function getOpenAIClient(auth: OpenAIAuth = {}, options?: ObservedClientOptions)
   const client = new OpenAI({
     apiKey,
     baseURL: process.env.OPENAI_BASE_URL || undefined,
-    timeout: Number(process.env.OPENAI_TIMEOUT_MS || 30000),
-    httpAgent: getProxyAgent()
+    timeout: Number(process.env.OPENAI_TIMEOUT_MS || 30000)
   });
 
   if (!options?.handle || !isLangfuseEnabled()) {
@@ -286,18 +273,16 @@ async function generateGeminiAnswer(
   const client = new OpenAI({
     apiKey,
     baseURL: process.env.GEMINI_OPENAI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta/openai/",
-    timeout: Number(process.env.GEMINI_TIMEOUT_MS || process.env.OPENAI_TIMEOUT_MS || 30000),
-    httpAgent: getProxyAgent()
+    timeout: Number(process.env.GEMINI_TIMEOUT_MS || process.env.OPENAI_TIMEOUT_MS || 30000)
   });
   const seed = options.seed;
   const temperature = 0;
 
-  // Gemini 2.5+ supports `seed`; 2.0 and earlier reject it as an unknown field.
-  const supportsSeeed = model.includes("2.5") || model.includes("2.6");
+  // Gemini's OpenAI-compatible endpoint rejects `seed` as an unknown field,
+  // even for models where the native API supports seeded generation.
   const completion = await client.chat.completions.create({
     model,
     temperature,
-    ...(supportsSeeed && seed !== undefined ? { seed } : {}),
     messages: [
       {
         role: "system",

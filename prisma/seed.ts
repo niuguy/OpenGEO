@@ -7,7 +7,7 @@ async function main() {
   const business = await prisma.business.upsert({
     where: { id: "demo-woking-dentist" },
     update: {
-      name: "Example Dental Clinic",
+      name: "Fictional Dental Clinic",
       category: "dentist",
       location: "Woking, Surrey",
       websiteUrl: "https://example.com",
@@ -22,7 +22,7 @@ async function main() {
     },
     create: {
       id: "demo-woking-dentist",
-      name: "Example Dental Clinic",
+      name: "Fictional Dental Clinic",
       category: "dentist",
       location: "Woking, Surrey",
       websiteUrl: "https://example.com",

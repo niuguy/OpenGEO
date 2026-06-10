@@ -311,7 +311,7 @@ function Footer({ businessName, date, agency }: { businessName: string; date: st
       <Text style={s.footerText}>{businessName} · AI Visibility Report</Text>
       {agency
         ? <Text style={s.footerBrand}>{agency.name}</Text>
-        : <Text style={s.footerBrand}>nearbyAI</Text>
+        : <Text style={s.footerBrand}>OpenGEO</Text>
       }
       <Text style={s.footerText} render={({ pageNumber, totalPages }) => `${date}  ·  ${pageNumber} / ${totalPages}`} />
     </View>
@@ -431,7 +431,7 @@ export function VisibilityReport({ data }: { data: ReportData }) {
   const provColW = { name: "25%", runs: "12%", vis: "13%", rec: "13%", sov: "13%", rank: "12%", con: "12%" } as const;
 
   return (
-    <Document title={`AI Visibility Report — ${business.name}`} author={agency?.name ?? "nearbyAI"}>
+    <Document title={`AI Visibility Report — ${business.name}`} author={agency?.name ?? "OpenGEO"}>
 
       {/* ── PAGE 1: Cover + Executive Summary ── */}
       <Page size="A4" style={s.page}>
@@ -715,7 +715,7 @@ export function VisibilityReport({ data }: { data: ReportData }) {
           <Text style={[s.footerText, { fontSize: 7, color: MUTED, lineHeight: 1.6 }]}>
             This report reflects AI recommendation patterns observed at the time of data collection.
             AI answers are probabilistic and change frequently. Scores should be interpreted as
-            directional indicators, not absolute rankings. {agency?.name ?? "nearbyAI"} is not affiliated with OpenAI,
+            directional indicators, not absolute rankings. {agency?.name ?? "OpenGEO"} is not affiliated with OpenAI,
             Google, or any AI provider referenced herein.
           </Text>
         </View>

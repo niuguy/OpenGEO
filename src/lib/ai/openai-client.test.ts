@@ -36,6 +36,8 @@ describe("generateAnswer", () => {
     finishTrace.mockClear();
     process.env.OPENAI_API_KEY = "sk-test";
     process.env.OPENAI_MODEL = "gpt-test";
+    process.env.GEMINI_API_KEY = "gemini-test";
+    process.env.GEMINI_MODEL = "gemini-2.5-flash";
   });
 
   it("uses the Langfuse OpenAI wrapper when a trace handle exists", async () => {
@@ -142,6 +144,50 @@ describe("generateAnswer", () => {
     expect(result.systemFingerprint).toBe("fp_8f3e2a");
     expect(result.seed).toBe(BigInt(seed));
     expect(result.temperature).toBe(0);
+  });
+
+  it("does not send seed to Gemini's OpenAI-compatible endpoint", async () => {
+    completionCreate.mockResolvedValue({
+      choices: [{ message: { content: "Gemini answer" } }],
+      usage: {
+        prompt_tokens: 10,
+        completion_tokens: 5,
+        total_tokens: 15
+      }
+    });
+
+    const { generateAnswer, deterministicSeed } = await import("./openai-client");
+    const seed = deterministicSeed("business-1", "prompt-1", 0);
+    const result = await generateAnswer(
+      "best dentist in Woking",
+      {
+        businessId: "business-1",
+        businessName: "Example Dental Clinic",
+        category: "dentist",
+        location: "Woking, Surrey",
+        competitors: [],
+        targetAttributes: []
+      },
+      {
+        evaluationRunId: "eval-1",
+        promptClusterId: "cluster-1",
+        promptClusterIntent: "Best local provider",
+        promptId: "prompt-1",
+        sampleIndex: 0
+      },
+      {},
+      "gemini",
+      { seed }
+    );
+
+    expect(completionCreate).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        seed: expect.anything()
+      })
+    );
+    expect(result.provider).toBe("gemini");
+    expect(result.seed).toBe(BigInt(seed));
+    expect(result.trace.tokenUsage?.total_tokens).toBe(15);
   });
 
   it("deterministicSeed is stable per (businessId, promptId, sampleIndex)", async () => {

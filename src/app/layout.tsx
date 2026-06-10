@@ -3,8 +3,8 @@ import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AI Search Visibility Engine",
-  description: "Track how your business appears in AI search results.",
+  title: "OpenGEO",
+  description: "Open-source AI search visibility tracking for local businesses.",
 };
 
 export default function RootLayout({
@@ -18,7 +18,7 @@ export default function RootLayout({
         <header className="border-b border-line bg-white">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
             <Link href="/" className="font-semibold tracking-normal text-ink">
-              AI Search Visibility Engine
+              OpenGEO
             </Link>
             <nav className="flex items-center gap-4 text-sm text-muted">
               <Link href="/audit-machine" className="hover:text-ink">
