@@ -7,7 +7,8 @@ const prisma = {
   },
   promptRun: {
     create: vi.fn(),
-    update: vi.fn()
+    update: vi.fn(),
+    findFirst: vi.fn().mockResolvedValue(null)
   },
   visibilitySnapshot: {
     create: vi.fn(),
@@ -32,6 +33,8 @@ describe("processPromptRun", () => {
     prisma.prompt.findMany.mockReset();
     prisma.promptRun.create.mockReset();
     prisma.promptRun.update.mockReset();
+    prisma.promptRun.findFirst.mockReset();
+    prisma.promptRun.findFirst.mockResolvedValue(null);
     prisma.visibilitySnapshot.create.mockReset();
     prisma.visibilitySnapshot.findFirst.mockReset();
     prisma.visibilitySnapshot.findFirst.mockResolvedValue(null);

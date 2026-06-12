@@ -236,6 +236,19 @@ export async function refreshVisibilitySnapshot(businessId: string) {
 }
 
 export async function refreshVisibilitySnapshotForProvider(businessId: string, provider: ObservationProvider) {
+  // Scope metrics to the latest evaluation run. Aggregating every historical
+  // run inflates per-prompt counts past 100% (visibility = appearances /
+  // promptCount assumes one evaluation's worth of samples). Legacy rows
+  // without an evaluationRunId fall back to all completed runs.
+  const latestCompletedRun = await prisma.promptRun.findFirst({
+    where: { prompt: { businessId }, provider, status: "COMPLETED" },
+    orderBy: { startedAt: "desc" },
+    select: { evaluationRunId: true }
+  });
+  const evaluationScope = latestCompletedRun?.evaluationRunId
+    ? { evaluationRunId: latestCompletedRun.evaluationRunId }
+    : {};
+
   const prompts = await prisma.prompt.findMany({
     where: {
       businessId,
@@ -243,7 +256,7 @@ export async function refreshVisibilitySnapshotForProvider(businessId: string, p
     },
     include: {
       runs: {
-        where: { status: "COMPLETED", provider },
+        where: { status: "COMPLETED", provider, ...evaluationScope },
         include: {
           extractionResult: {
             include: {
