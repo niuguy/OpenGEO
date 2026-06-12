@@ -112,7 +112,7 @@ export function DashboardActions({ businessId, monitoringEnabled, monitoringInte
 
     setStatus("success");
     setMessage(
-      "Runs queued. Ensure the background 'pnpm worker' is running to process them.",
+      "Runs queued — live progress appears at the top of this report while the worker processes them.",
     );
     router.refresh();
   }

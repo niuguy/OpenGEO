@@ -160,18 +160,31 @@ export function AuditMachine({ mode = "full" }: AuditMachineProps) {
                   </div>
                   <div className="rounded-md bg-white p-3 border border-line">
                     <p className="text-xs font-medium text-ink uppercase tracking-wide">
-                      Prompts Generated
+                      Prompts Generated (Drafts)
                     </p>
                     <p className="mt-1 text-2xl font-bold text-accent">
                       {websiteResult.promptCount}
                     </p>
+                    <p className="mt-1 text-xs leading-5">
+                      No AI answers have been sampled yet. Review and approve
+                      the prompts, then run them — the report fills in as the
+                      samples complete.
+                    </p>
                   </div>
-                  <Link
-                    href={`/businesses/${websiteResult.business.id}`}
-                    className="inline-flex items-center justify-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
-                  >
-                    Open audit dashboard
-                  </Link>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      href={`/businesses/${websiteResult.business.id}/prompts`}
+                      className="inline-flex items-center justify-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                    >
+                      Review prompts &amp; run
+                    </Link>
+                    <Link
+                      href={`/businesses/${websiteResult.business.id}`}
+                      className="inline-flex items-center justify-center rounded-md border border-line bg-white px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-panel"
+                    >
+                      Open report
+                    </Link>
+                  </div>
                 </div>
               ) : null}
               {websiteResult.pages?.length ? (

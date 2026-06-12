@@ -45,7 +45,16 @@ export async function POST(request: Request, context: RouteContext) {
   });
 
   if (prompts.length === 0) {
-    return NextResponse.json({ error: "No active prompts found. Generate prompts first." }, { status: 400 });
+    const draftCount = await prisma.prompt.count({ where: { businessId: id, status: "DRAFT" } });
+    return NextResponse.json(
+      {
+        error:
+          draftCount > 0
+            ? `${draftCount} generated prompts are awaiting review. Approve them on the Prompts page, then run.`
+            : "No active prompts found. Generate prompts first."
+      },
+      { status: 400 }
+    );
   }
 
   if (mode === "direct") {

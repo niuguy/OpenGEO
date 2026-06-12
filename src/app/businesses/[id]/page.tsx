@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { DashboardActions } from "@/components/dashboard-actions";
 import { getBusinessDashboard } from "@/lib/dashboard";
 import { ProgressBar, InfoIcon, Badge } from "@/components/ui-extras";
+import { RunProgress } from "@/components/run-progress";
 import { WhitelabelForm } from "@/components/whitelabel-form";
 import { SnapshotChart } from "@/components/snapshot-chart";
 
@@ -90,6 +91,8 @@ export default async function BusinessDashboardPage({ params, searchParams }: Pr
           )}
         </div>
       </div>
+
+      <RunProgress businessId={dashboard.business.id} />
 
       <section className="mt-6 rounded-lg border border-line bg-white p-5 shadow-sm">
         <div className="grid gap-8 lg:grid-cols-3">
