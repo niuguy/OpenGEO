@@ -28,7 +28,8 @@ export default async function PromptsReviewPage({ params }: PageProps) {
     text: prompt.text,
     clusterIntent: prompt.clusterIntent,
     status: prompt.status,
-    source: prompt.source
+    source: prompt.source,
+    rationale: prompt.rationale
   }));
 
   return (

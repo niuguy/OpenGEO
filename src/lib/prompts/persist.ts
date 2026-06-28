@@ -11,9 +11,13 @@ export type PersistGeneratedOptions = {
   status?: "DRAFT" | "ACTIVE";
 };
 
+// Prompts may optionally carry a strategist rationale (the one-line "why" shown
+// at the Gate-2 review). Plain pack output has none; that's fine.
+type PersistablePrompt = GeneratedPrompt & { rationale?: string | null };
+
 export async function persistGeneratedPrompts(
   businessId: string,
-  generated: GeneratedPrompt[],
+  generated: PersistablePrompt[],
   options: PersistGeneratedOptions = {}
 ) {
   const status = options.status ?? "DRAFT";
@@ -22,13 +26,15 @@ export async function persistGeneratedPrompts(
     // packId rides inside the samplingBasis JSON until the Prompt table grows
     // a real column (plan Phase 5); avoids a migration in the adapter phase.
     const samplingBasis = { packId: prompt.packId, ...prompt.samplingBasis };
+    const rationale = prompt.rationale ?? null;
     await prisma.prompt.upsert({
       where: { businessId_text: { businessId, text: prompt.text } },
       update: {
         template: prompt.template,
         clusterId: prompt.clusterId,
         clusterIntent: prompt.clusterIntent,
-        samplingBasis
+        samplingBasis,
+        rationale
       },
       create: {
         businessId,
@@ -37,6 +43,7 @@ export async function persistGeneratedPrompts(
         clusterId: prompt.clusterId,
         clusterIntent: prompt.clusterIntent,
         samplingBasis,
+        rationale,
         status,
         source: "generated"
       }

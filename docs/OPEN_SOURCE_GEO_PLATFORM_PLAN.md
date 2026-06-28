@@ -278,7 +278,7 @@ Implement deterministic readiness as a real runtime feature:
 
 ## 4. Open Source Product Shape
 
-The open-source version should be useful without a hosted SaaS account.
+The open-source version should be useful as a self-hosted project.
 
 First-class open-source surfaces:
 
@@ -309,17 +309,6 @@ export default {
 - JSON import/export for runs and reports.
 - MCP server so agents can inspect projects, run audits, compare entities, and prepare recommendations.
 - Docker Compose as the default self-hosting path.
-
-Hosted or managed features can stay optional later:
-
-- accounts and workspaces
-- scheduled monitoring
-- team access
-- hosted queues
-- hosted MCP
-- white-label reporting
-- managed prompt packs
-- benchmark datasets
 
 ## 5. Phased Roadmap
 
@@ -463,8 +452,7 @@ This is the smallest useful move toward the larger goal. It proves the architect
 
 Avoid these until the generic model is proven:
 
-- Full account/auth/subscription work.
-- Hosted SaaS billing.
+- Full account/workspace work.
 - Enterprise benchmark datasets.
 - A complete schema migration away from `Business` in the first pass.
 - Rewriting the dashboard from scratch.
@@ -479,17 +467,13 @@ OpenGEO is on the right path when:
 - Prompt packs are selectable and inspectable.
 - AI spot-check reports distinguish provider observations from deterministic readiness.
 - Readiness checks produce repeatable evidence and fixes.
-- The project can be used from CLI/config, not only the hosted web UI.
+- The project can be used from CLI/config, not only the web UI.
 - New target kinds can be added by adding prompt/check packs, not by rewriting core code.
 
 ## 9. UX: Tool-First Front Door (OSS)
 
-The current `/` is a B2B sales funnel, not an open-source front door. Its terminal
-CTA is a contact form (`#inquiry`) pitching "managed setup, white-label reports… for
-local businesses and agencies," and a dark section splits the audience into "For
-Businesses / For Agencies." The real self-serve tool (`AuditMachine`) lives at
-`/audit-machine` and isn't linked from the hero. Both "new audit" entry points route
-to the sales form, not the tool. For OSS, the tool should be the first thing you see.
+The home page should be a working product surface, not a marketing page. For
+OSS, the audit tool should be the first thing you see.
 
 ### Decisions (locked)
 

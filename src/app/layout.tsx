@@ -28,6 +28,9 @@ export default function RootLayout({
               <Link href="/businesses" className="hover:text-ink">
                 Reports
               </Link>
+              <Link href="/ops/worker" className="hover:text-ink">
+                Worker
+              </Link>
               <a
                 href="https://github.com/niuguy/OpenGEO"
                 target="_blank"

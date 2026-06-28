@@ -12,6 +12,7 @@ export type ReviewablePrompt = {
   clusterIntent: string;
   status: PromptStatus;
   source: string;
+  rationale?: string | null;
 };
 
 type Props = {
@@ -141,6 +142,9 @@ export function PromptsReview({ businessId, initialPrompts }: Props) {
                   <p className={prompt.status === "ACTIVE" ? "text-ink" : "text-muted line-through decoration-1"}>
                     {prompt.text}
                   </p>
+                  {prompt.rationale ? (
+                    <p className="mt-1 text-xs italic text-muted">{prompt.rationale}</p>
+                  ) : null}
                   {prompt.source === "user" ? (
                     <Badge variant="accent" className="mt-1">your prompt</Badge>
                   ) : null}

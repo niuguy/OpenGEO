@@ -31,9 +31,13 @@ model Business {
   id               String               @id @default(cuid())
   name             String
   category         String
-  location         String
+  location         String                @default("")
   websiteUrl       String
   targetAttributes String[]
+  targetKind       String                @default("local_business")
+  status           String                @default("DRAFT_INTAKE")
+  audience         String?
+  profile          Json?
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
   monitoringEnabled      Boolean              @default(false)
@@ -158,6 +162,7 @@ model Prompt {
   clusterId     String
   clusterIntent String
   samplingBasis Json?
+  rationale     String?
   status        PromptStatus @default(DRAFT)
   source        String       @default("generated")
   createdAt     DateTime     @default(now())

@@ -176,8 +176,8 @@ export function DashboardActions({ businessId, monitoringEnabled, monitoringInte
             />
           </label>
           <p className="mt-2 text-[10px] text-muted leading-relaxed">
-            By default, we use our managed infrastructure. You can provide your
-            own key to override local rate limits or use custom models.
+            By default, runs use the API key configured in this self-hosted
+            environment. You can provide a temporary key for this direct run.
           </p>
         </div>
       </details>

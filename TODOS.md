@@ -2,9 +2,9 @@
 
 Captured backlog. Each entry has a concrete trigger or unlock condition. Not a wishlist.
 
-## PR-A: Spot-check hardening (Tier-1) — deferred to week 4
+## PR-A: Spot-check hardening (Tier-1)
 
-**Why deferred:** Per design doc `~/.gstack/projects/niuguy-nearbyAI/feng-main-design-20260523-114753.md` rollout, PR-A ships after the prompt-review transparency UX (PR-T) and after first paid audit attempts. Customer reply signal will shape what hardening details actually matter.
+**Why deferred:** PR-A ships after the prompt-review transparency UX (PR-T) and after real audit usage gives enough feedback to shape what hardening details actually matter.
 
 **Architecture findings surfaced during /plan-eng-review on 2026-05-23 (capture before re-review):**
 
@@ -24,11 +24,11 @@ Captured backlog. Each entry has a concrete trigger or unlock condition. Not a w
 
 ---
 
-## E2E Playwright tests for PR-T flows — trigger: first paid agency exists
+## E2E Playwright tests for PR-T flows — trigger: repeated manual regressions
 
-**Why deferred:** Per /plan-eng-review D9, medium-tier route-handler tests cover the PR-T critical paths. Playwright is ~4–6h of new tooling that doesn't pay back before PMF.
+**Why deferred:** Medium-tier route-handler tests cover the PR-T critical paths. Playwright is ~4–6h of new tooling that does not pay back until these flows are changing often.
 
-**Trigger:** When the first paid agency runs an audit on the platform, build out Playwright coverage for the 3 user flows captured in `~/.gstack/projects/niuguy-nearbyAI/feng-main-eng-review-test-plan-20260523-221441.md`:
+**Trigger:** When prompt-review or audit-start flows regress more than once, build out Playwright coverage for the 3 core flows:
 - First-time creation → /prompts → audit
 - Edit / re-approve mid-monitoring
 - Add custom + audit

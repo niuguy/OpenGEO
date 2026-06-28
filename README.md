@@ -201,25 +201,6 @@ pnpm test
 
 Current tests cover prompt generation, structured extraction schema validation, optional Langfuse mode, OpenAI wrapper flow, trace ID persistence, and local GEO metric calculation.
 
-## Open-Core Direction
+## License
 
-Open-source:
-
-- prompt generation
-- provider answer runs
-- structured extraction
-- GEO scoring
-- local dashboard
-- local reports
-- seed/demo data
-- agent skills
-
-Managed or paid later:
-
-- hosted monitoring
-- agency/client workspaces
-- white-label reports
-- vertical prompt packs
-- competitor benchmarks
-- scheduled alerts
-- hosted MCP
+OpenGEO is licensed under the Apache License 2.0. See [LICENSE](LICENSE).

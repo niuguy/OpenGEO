@@ -687,7 +687,7 @@ const offSiteCitationsChecks: AuditCheckDefinition[] = [
     criteria:
       "PASS: Trustpilot profile exists for the business (domain or name match). FAIL: no profile found.",
     fixGuidance:
-      "Create a Trustpilot business profile at business.trustpilot.com. Free tier is sufficient for visibility; paid plans add review-invitation tools.",
+      "Create a Trustpilot business profile at business.trustpilot.com so review signals are easier to discover and verify.",
   },
   {
     id: "citations.trustpilot-claimed",

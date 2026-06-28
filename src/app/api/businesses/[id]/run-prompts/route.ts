@@ -57,6 +57,13 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
+  // The audit is now live; graduate the business out of the intake draft state.
+  // Covers both the direct and queued paths below.
+  await prisma.business.updateMany({
+    where: { id, status: "DRAFT_INTAKE" },
+    data: { status: "ACTIVE" }
+  });
+
   if (mode === "direct") {
     if (!body.openAiApiKey && !process.env.OPENAI_API_KEY) {
       return NextResponse.json(
